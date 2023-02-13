@@ -45,7 +45,11 @@ public class Drive extends SubsystemBase {
 
   /** Creates a new Drivetrain. */
   public Drive() {
-    m_right.setInverted(true);
+    m_right.setInverted(DriveConstants.kRightInverted);
+    m_left.setInverted(DriveConstants.kLeftInverted);
+
+    m_leftEncoder.setDistancePerPulse(DriveConstants.kDistancePerPulse);
+    m_rightEncoder.setDistancePerPulse(DriveConstants.kDistancePerPulse);
 
     m_gyro.reset();
     m_leftEncoder.reset();
@@ -55,6 +59,24 @@ public class Drive extends SubsystemBase {
   public CommandBase tankDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
     return run(() -> m_drive.tankDrive(leftPower.getAsDouble(), rightPower.getAsDouble()))
         .withName("tankDrive");
+  }
+
+  public CommandBase driveDistanceCommand(double distanceMeters, double speed) {
+    return runOnce(
+            () -> {
+              // Reset encoders at the start of the command
+              m_leftEncoder.reset();
+              m_rightEncoder.reset();
+            })
+        // Drive forward at specified speed
+        .andThen(run(() -> m_drive.arcadeDrive(speed, 0)))
+        // End command when we've traveled the specified distance
+        .until(
+            () ->
+                Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance())
+                    >= distanceMeters)
+        // Stop the drive when the command ends
+        .finallyDo(interrupted -> m_drive.stopMotor());
   }
 
   @Override
