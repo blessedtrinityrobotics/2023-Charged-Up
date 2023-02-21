@@ -29,7 +29,7 @@ public final class Constants {
 
         public static final double kPDriveVel = 3.3015; // P gain for feedback 
 
-        public static final DifferentialDriveKinematics kDriveKinematics = new DifferentialDriveKinematics(empiricalTrackWidthMeters);
+        public static final DifferentialDriveKinematics kDriveKinematics = new DifferentialDriveKinematics(physicalTrackWidthMeters);
     }
 
     public static final class AutoConstants {
