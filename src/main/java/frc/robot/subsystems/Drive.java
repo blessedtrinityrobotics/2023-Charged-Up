@@ -9,6 +9,9 @@ import java.util.function.DoubleSupplier;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
 import com.ctre.phoenix.sensors.WPI_Pigeon2;
 
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
@@ -39,9 +42,11 @@ public class Drive extends SubsystemBase {
           DriveConstants.kRightEncoderPorts[1],
           DriveConstants.kRightEncoderReversed);
 
-  WPI_Pigeon2 m_gyro = new WPI_Pigeon2(0);
+  WPI_Pigeon2 m_gyro = new WPI_Pigeon2(DriveConstants.kPigeonId);
 
   DifferentialDrive m_drive = new DifferentialDrive(m_left, m_right);
+
+  private final DifferentialDriveOdometry m_odometry; 
 
   /** Creates a new Drivetrain. */
   public Drive() {
@@ -52,8 +57,115 @@ public class Drive extends SubsystemBase {
     m_rightEncoder.setDistancePerPulse(DriveConstants.kDistancePerPulse);
 
     m_gyro.reset();
+    resetEncoders();
+
+    m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(), 0, 0);
+
+  }
+
+  public void resetEncoders() {
     m_leftEncoder.reset();
     m_rightEncoder.reset();
+  }
+
+   /**
+   * Returns the currently-estimated pose of the robot.
+   *
+   * @return The pose.
+   */
+  public Pose2d getPose() {
+    return m_odometry.getPoseMeters();
+  }
+
+  /**
+   * Returns the current wheel speeds of the robot.
+   *
+   * @return The current wheel speeds.
+   */
+  public DifferentialDriveWheelSpeeds getWheelSpeeds() {
+    return new DifferentialDriveWheelSpeeds(m_leftEncoder.getRate(), m_rightEncoder.getRate());
+  }
+
+  /**
+   * Resets the odometry to the specified pose.
+   *
+   * @param pose The pose to which to set the odometry.
+   */
+  public void resetOdometry(Pose2d pose) {
+    resetEncoders();
+    m_odometry.resetPosition(
+        m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance(), pose);
+  }
+
+  /**
+   * Controls the left and right sides of the drive directly with voltages.
+   *
+   * @param leftVolts the commanded left output
+   * @param rightVolts the commanded right output
+   */
+  public void tankDriveVolts(double leftVolts, double rightVolts) {
+    m_left.setVoltage(leftVolts);
+    m_right.setVoltage(rightVolts);
+    m_drive.feed();
+  }
+
+  /**
+   * Gets the average distance of the two encoders.
+   *
+   * @return the average of the two encoder readings
+   */
+  public double getAverageEncoderDistance() {
+    return (m_leftEncoder.getDistance() + m_rightEncoder.getDistance()) / 2.0;
+  }
+
+  /**
+   * Gets the left drive encoder.
+   *
+   * @return the left drive encoder
+   */
+  public Encoder getLeftEncoder() {
+    return m_leftEncoder;
+  }
+
+  /**
+   * Gets the right drive encoder.
+   *
+   * @return the right drive encoder
+   */
+  public Encoder getRightEncoder() {
+    return m_rightEncoder;
+  }
+
+  /**
+   * Sets the max output of the drive. Useful for scaling the drive to drive more slowly.
+   *
+   * @param maxOutput the maximum output to which the drive will be constrained
+   */
+  public void setMaxOutput(double maxOutput) {
+    m_drive.setMaxOutput(maxOutput);
+  }
+
+  /** Zeroes the heading of the robot. */
+  public void zeroHeading() {
+    m_gyro.reset();
+  }
+
+  /**
+   * Returns the heading of the robot.
+   *
+   * @return the robot's heading in degrees, from -180 to 180
+   */
+  public double getHeading() {
+    return m_gyro.getRotation2d().getDegrees();
+  }
+
+  /**
+   * Returns the turn rate of the robot.
+   *
+   * @return The turn rate of the robot, in degrees per second
+   */
+  public double getTurnRate() {
+    return -m_gyro.getRate();
   }
 
   public CommandBase tankDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
@@ -84,5 +196,7 @@ public class Drive extends SubsystemBase {
       SmartDashboard.putNumber("Yaw", m_gyro.getYaw());
       SmartDashboard.putNumber("Left Encoder", m_leftEncoder.getDistance());
       SmartDashboard.putNumber("Right Encoder", m_rightEncoder.getDistance());
+
+      m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
 }
