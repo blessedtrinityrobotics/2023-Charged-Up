@@ -175,11 +175,7 @@ public class Drive extends SubsystemBase {
 
   public CommandBase driveDistanceCommand(double distanceMeters, double speed) {
     return runOnce(
-            () -> {
-              // Reset encoders at the start of the command
-              m_leftEncoder.reset();
-              m_rightEncoder.reset();
-            })
+            () -> resetEncoders())
         // Drive forward at specified speed
         .andThen(run(() -> m_drive.arcadeDrive(speed, 0)))
         // End command when we've traveled the specified distance
@@ -188,7 +184,7 @@ public class Drive extends SubsystemBase {
                 Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance())
                     >= distanceMeters)
         // Stop the drive when the command ends
-        .finallyDo(interrupted -> m_drive.stopMotor());
+        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
   }
 
   @Override
