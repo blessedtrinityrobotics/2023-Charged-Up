@@ -43,13 +43,16 @@ public class Drive extends SubsystemBase {
           DriveConstants.kRightEncoderReversed);
 
   WPI_Pigeon2 m_gyro = new WPI_Pigeon2(DriveConstants.kPigeonId);
-
   DifferentialDrive m_drive = new DifferentialDrive(m_left, m_right);
-
-  private final DifferentialDriveOdometry m_odometry; 
+  DifferentialDriveOdometry m_odometry; 
 
   /** Creates a new Drivetrain. */
   public Drive() {
+    SmartDashboard.putData("Gyro", m_gyro);
+    SmartDashboard.putData("Drive", m_drive);
+    SmartDashboard.putData("Right Encoder", m_rightEncoder);
+    SmartDashboard.putData("Left Encoder", m_leftEncoder);
+
     m_right.setInverted(DriveConstants.kRightInverted);
     m_left.setInverted(DriveConstants.kLeftInverted);
 
@@ -189,10 +192,6 @@ public class Drive extends SubsystemBase {
 
   @Override
   public void periodic() {
-      SmartDashboard.putNumber("Yaw", m_gyro.getYaw());
-      SmartDashboard.putNumber("Left Encoder", m_leftEncoder.getDistance());
-      SmartDashboard.putNumber("Right Encoder", m_rightEncoder.getDistance());
-
       m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
 }
