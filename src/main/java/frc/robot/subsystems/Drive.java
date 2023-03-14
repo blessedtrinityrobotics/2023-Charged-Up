@@ -6,6 +6,7 @@ package frc.robot.subsystems;
 
 import java.util.function.DoubleSupplier;
 
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
 import com.ctre.phoenix.sensors.WPI_Pigeon2;
 
@@ -21,14 +22,16 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
 
 public class Drive extends SubsystemBase {
-  MotorControllerGroup m_left = new MotorControllerGroup(
-      new WPI_TalonFX(DriveConstants.kFrontLeftDriveId),
-      new WPI_TalonFX(DriveConstants.kBackLeftDriveId));
+  WPI_TalonFX fl = new WPI_TalonFX(DriveConstants.kFrontLeftDriveId);
+  WPI_TalonFX bl = new WPI_TalonFX(DriveConstants.kBackLeftDriveId);
+  WPI_TalonFX fr = new WPI_TalonFX(DriveConstants.kFrontRightDriveId);
+  WPI_TalonFX br = new WPI_TalonFX(DriveConstants.kBackRightDriveId);
 
-  MotorControllerGroup m_right = new MotorControllerGroup(
-      new WPI_TalonFX(DriveConstants.kFrontRightDriveId),
-      new WPI_TalonFX(DriveConstants.kBackRightDriveId));
+  MotorControllerGroup m_left = new MotorControllerGroup(fl, bl);
+  MotorControllerGroup m_right = new MotorControllerGroup(fr, br);
 
+  private double reverseMultipler = 1; 
+      
   private final Encoder m_leftEncoder =
       new Encoder(
           DriveConstants.kLeftEncoderPorts[0],
@@ -48,11 +51,6 @@ public class Drive extends SubsystemBase {
 
   /** Creates a new Drivetrain. */
   public Drive() {
-    SmartDashboard.putData("Gyro", m_gyro);
-    SmartDashboard.putData("Drive", m_drive);
-    SmartDashboard.putData("Right Encoder", m_rightEncoder);
-    SmartDashboard.putData("Left Encoder", m_leftEncoder);
-
     m_right.setInverted(DriveConstants.kRightInverted);
     m_left.setInverted(DriveConstants.kLeftInverted);
 
@@ -171,8 +169,8 @@ public class Drive extends SubsystemBase {
     return -m_gyro.getRate();
   }
 
-  public CommandBase tankDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
-    return run(() -> m_drive.tankDrive(leftPower.getAsDouble(), rightPower.getAsDouble()))
+  public CommandBase arcadeDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
+    return run(() -> m_drive.arcadeDrive(leftPower.getAsDouble(), rightPower.getAsDouble()))
         .withName("tankDrive");
   }
 
@@ -188,6 +186,63 @@ public class Drive extends SubsystemBase {
                     >= distanceMeters)
         // Stop the drive when the command ends
         .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
+  }
+
+  public CommandBase driveBackDistanceCommand(double distanceMeters, double speed) {
+    return runOnce(
+            () -> resetEncoders())
+        // Drive forward at specified speed
+        .andThen(run(() -> m_drive.arcadeDrive(-speed, 0)))
+        // End command when we've traveled the specified distance
+        .until(
+            () ->
+                Math.min(m_leftEncoder.getDistance(), m_rightEncoder.getDistance())
+                    <= -distanceMeters)
+        // Stop the drive when the command ends
+        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
+  }
+
+  public CommandBase driveBackUntilBalancedCommand(double speed) {
+    return runOnce(
+        () -> resetGyro())
+        // Drive forward at specified speed
+        .andThen(run(() -> m_drive.arcadeDrive(-speed, 0))
+        .until(() -> Math.abs(getRoll()) <= 3))
+        // Stop the drive when the command ends
+        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
+  } 
+
+  public void resetGyro() {
+    m_gyro.reset();
+  }
+
+  public void brakeMotors() {
+    fl.setNeutralMode(NeutralMode.Brake);
+    bl.setNeutralMode(NeutralMode.Brake);
+    fr.setNeutralMode(NeutralMode.Brake);
+    br.setNeutralMode(NeutralMode.Brake);
+    SmartDashboard.putBoolean("Motors Braked", true);
+  }
+
+  public void reverseDirection() {
+    reverseMultipler = -1;
+  }
+
+  public void forwardDirection() {
+    reverseMultipler = 1;
+  }
+
+  public void coastMotors() {
+    fl.setNeutralMode(NeutralMode.Coast);
+    bl.setNeutralMode(NeutralMode.Coast);
+    fr.setNeutralMode(NeutralMode.Coast);
+    br.setNeutralMode(NeutralMode.Coast);
+    SmartDashboard.putBoolean("Motors Braked", false);
+
+  }
+
+  public double getRoll() {
+    return m_gyro.getRoll(); 
   }
 
   @Override

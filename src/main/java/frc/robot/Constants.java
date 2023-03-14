@@ -44,6 +44,47 @@ public final class Constants {
 
     public static final class OIConstants {
         public static final int kDriverControllerId = 0;
+        public static final int kOperatorControllerId = 1;
     }
 
+    public static final class ArmConstants {
+        public static final int kArmEncoderPort = 9;
+        public static final int kArmMotorId = 9;
+        public static final int kIntakeLeftId = 11;
+        public static final int kIntakeRightId = 10; 
+        public static final double kUpper = 90; // idk
+        public static final double kLower = 0; 
+        public static final String kEncoderOffsetKey = "EncoderOffset"; 
+        public static final double kEncoderDistancePerRotation = 360; // to convert to degrees 
+        public static final double kDefaultEncoderOffset = 0; 
+
+        public static final double kS = 0;
+        public static final double kG = 0;
+        public static final double kV = 0; 
+
+        public static final double kP = 1;
+        public static final double kI = 0;
+        public static final double kD = 0;
+    }
+
+    public static final class ElevatorConstants {
+        public static final int kElevatorRangefinderId = 12; 
+        public static final int kElevatorMotorId = 1; 
+
+        public static final double kUpperRange = 730; // millis
+        public static final double kLowerRange = 130; // mills
+        // 43.5 inches tall 
+
+        public static final double kS = 0;
+        public static final double kG = 0;
+        public static final double kV = 0; 
+
+        public static final double kP = 1;
+        public static final double kI = 0;
+        public static final double kD = 0; 
+    }
+
+    public static final class ShuffleboardConstants {
+        public static final String kArmTab = "Arm";
+    }
 }
