@@ -46,7 +46,6 @@ public class Elevator extends SubsystemBase {
         power = Math.max(0, power);
       else if (m_rangefinder.getRange() > ElevatorConstants.kUpperRange) 
         power = Math.min(0, power);
-
       
       m_liftMotor.set(ControlMode.PercentOutput, power);
     });

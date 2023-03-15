@@ -4,6 +4,7 @@
 
 package frc.robot.subsystems;
 
+import java.util.Map;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix.motorcontrol.NeutralMode;
@@ -16,10 +17,16 @@ import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.ShuffleboardConstants;
 
 public class Drive extends SubsystemBase {
   WPI_TalonFX fl = new WPI_TalonFX(DriveConstants.kFrontLeftDriveId);
@@ -30,24 +37,22 @@ public class Drive extends SubsystemBase {
   MotorControllerGroup m_left = new MotorControllerGroup(fl, bl);
   MotorControllerGroup m_right = new MotorControllerGroup(fr, br);
 
-  private double reverseMultipler = 1; 
-      
-  private final Encoder m_leftEncoder =
-      new Encoder(
-          DriveConstants.kLeftEncoderPorts[0],
-          DriveConstants.kLeftEncoderPorts[1],
-          DriveConstants.kLeftEncoderReversed);
+  private double reverseMultipler = 1;
+
+  private final Encoder m_leftEncoder = new Encoder(
+      DriveConstants.kLeftEncoderPorts[0],
+      DriveConstants.kLeftEncoderPorts[1],
+      DriveConstants.kLeftEncoderReversed);
 
   // The right-side drive encoder
-  private final Encoder m_rightEncoder =
-      new Encoder(
-          DriveConstants.kRightEncoderPorts[0],
-          DriveConstants.kRightEncoderPorts[1],
-          DriveConstants.kRightEncoderReversed);
+  private final Encoder m_rightEncoder = new Encoder(
+      DriveConstants.kRightEncoderPorts[0],
+      DriveConstants.kRightEncoderPorts[1],
+      DriveConstants.kRightEncoderReversed);
 
   WPI_Pigeon2 m_gyro = new WPI_Pigeon2(DriveConstants.kPigeonId);
   DifferentialDrive m_drive = new DifferentialDrive(m_left, m_right);
-  DifferentialDriveOdometry m_odometry; 
+  DifferentialDriveOdometry m_odometry;
 
   /** Creates a new Drivetrain. */
   public Drive() {
@@ -59,8 +64,18 @@ public class Drive extends SubsystemBase {
 
     m_gyro.reset();
     resetEncoders();
-
     m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(), 0, 0);
+
+    configureDriveTab();
+  }
+
+  private void configureDriveTab() {
+    ShuffleboardTab driveTab = Shuffleboard.getTab(ShuffleboardConstants.kDriveTab);
+    ShuffleboardLayout encoderLayout = driveTab.getLayout("Encoders", BuiltInLayouts.kList);
+    encoderLayout.add("Left Encoder", m_leftEncoder);
+    encoderLayout.add("Right Encoder", m_rightEncoder);
+    driveTab.add("Gyro", m_gyro);
+    driveTab.addDouble("Roll", () -> getRoll());
 
   }
 
@@ -69,7 +84,7 @@ public class Drive extends SubsystemBase {
     m_rightEncoder.reset();
   }
 
-   /**
+  /**
    * Returns the currently-estimated pose of the robot.
    *
    * @return The pose.
@@ -101,7 +116,7 @@ public class Drive extends SubsystemBase {
   /**
    * Controls the left and right sides of the drive directly with voltages.
    *
-   * @param leftVolts the commanded left output
+   * @param leftVolts  the commanded left output
    * @param rightVolts the commanded right output
    */
   public void tankDriveVolts(double leftVolts, double rightVolts) {
@@ -138,7 +153,8 @@ public class Drive extends SubsystemBase {
   }
 
   /**
-   * Sets the max output of the drive. Useful for scaling the drive to drive more slowly.
+   * Sets the max output of the drive. Useful for scaling the drive to drive more
+   * slowly.
    *
    * @param maxOutput the maximum output to which the drive will be constrained
    */
@@ -176,41 +192,41 @@ public class Drive extends SubsystemBase {
 
   public CommandBase driveDistanceCommand(double distanceMeters, double speed) {
     return runOnce(
-            () -> resetEncoders())
+        () -> resetEncoders())
         // Drive forward at specified speed
         .andThen(run(() -> m_drive.arcadeDrive(speed, 0)))
         // End command when we've traveled the specified distance
         .until(
-            () ->
-                Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance())
-                    >= distanceMeters)
+            () -> Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) >= distanceMeters)
         // Stop the drive when the command ends
         .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
   }
 
   public CommandBase driveBackDistanceCommand(double distanceMeters, double speed) {
     return runOnce(
-            () -> resetEncoders())
+        () -> resetEncoders())
         // Drive forward at specified speed
         .andThen(run(() -> m_drive.arcadeDrive(-speed, 0)))
         // End command when we've traveled the specified distance
         .until(
-            () ->
-                Math.min(m_leftEncoder.getDistance(), m_rightEncoder.getDistance())
-                    <= -distanceMeters)
+            () -> Math.min(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) <= -distanceMeters)
         // Stop the drive when the command ends
         .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
   }
 
-  public CommandBase driveBackUntilBalancedCommand(double speed) {
+  public CommandBase driveUntilBalanced(double rollBackDegrees, double balancedDegrees, double power) {
     return runOnce(
         () -> resetGyro())
         // Drive forward at specified speed
-        .andThen(run(() -> m_drive.arcadeDrive(-speed, 0))
-        .until(() -> Math.abs(getRoll()) <= 3))
-        // Stop the drive when the command ends
-        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
-  } 
+        .andThen(
+            run(() -> m_drive.arcadeDrive(power, 0))
+                .until(() -> getRoll() > rollBackDegrees))
+        .andThen(
+            run(() -> m_drive.arcadeDrive(power, 0))
+                .until(() -> getRoll() < balancedDegrees))
+        .andThen(driveBackDistanceCommand(0.2, power))
+        .finallyDo(interrupted -> m_drive.arcadeDrive(0, 0));
+  }
 
   public void resetGyro() {
     m_gyro.reset();
@@ -237,16 +253,17 @@ public class Drive extends SubsystemBase {
     bl.setNeutralMode(NeutralMode.Coast);
     fr.setNeutralMode(NeutralMode.Coast);
     br.setNeutralMode(NeutralMode.Coast);
+    
     SmartDashboard.putBoolean("Motors Braked", false);
 
   }
 
   public double getRoll() {
-    return m_gyro.getRoll(); 
+    return m_gyro.getRoll() - DriveConstants.kFlatGyroRoll;
   }
 
   @Override
   public void periodic() {
-      m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
+    m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
 }

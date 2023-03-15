@@ -36,10 +36,7 @@ public class Arm extends SubsystemBase {
   WPI_TalonSRX m_arm = new WPI_TalonSRX(ArmConstants.kArmMotorId); 
   
   ArmFeedforward feedforward = new ArmFeedforward(ArmConstants.kS, ArmConstants.kG, ArmConstants.kV);
-  PIDController pid = new PIDController(ArmConstants.kP, ArmConstants.kI, ArmConstants.kD);
-
-  ShuffleboardTab m_armTab; 
-  double encoderOffset = 0; 
+  PIDController pid = new PIDController(ArmConstants.kP, ArmConstants.kI, ArmConstants.kD); 
 
   /** Creates a new Arm. */
   public Arm() {
@@ -51,11 +48,16 @@ public class Arm extends SubsystemBase {
 
     m_arm.setNeutralMode(NeutralMode.Brake);
 
-    m_armTab = Shuffleboard.getTab(ShuffleboardConstants.kArmTab);
-    m_armTab.add("Set Encoder Offset", setEncoderOffsetCommand()).withSize(2, 1);
-    m_armTab.addDouble("Arm Angle", () -> m_armEncoder.getDistance())
+    configureArmTab();
+  }
+
+  private void configureArmTab() {
+    ShuffleboardTab armTab = Shuffleboard.getTab(ShuffleboardConstants.kArmTab);
+    armTab.add("Offset Command", setEncoderOffsetCommand()).withSize(2, 1);
+    armTab.addDouble("Arm Angle", () -> m_armEncoder.getDistance())
       .withWidget(BuiltInWidgets.kDial)
       .withProperties(Map.of("min", ArmConstants.kLower, "max", ArmConstants.kUpper)); 
+
   }
 
 

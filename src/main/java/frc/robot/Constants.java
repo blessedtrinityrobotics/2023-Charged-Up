@@ -28,8 +28,9 @@ public final class Constants {
         public static final double physicalTrackWidthMeters = 0.5715; // meters 
 
         public static final double kPDriveVel = 3.3015; // P gain for feedback 
-
         public static final DifferentialDriveKinematics kDriveKinematics = new DifferentialDriveKinematics(physicalTrackWidthMeters);
+
+        public static final double kFlatGyroRoll = -11; 
     }
 
     public static final class AutoConstants {
@@ -86,5 +87,6 @@ public final class Constants {
 
     public static final class ShuffleboardConstants {
         public static final String kArmTab = "Arm";
+        public static final String kDriveTab = "Drive"; 
     }
 }

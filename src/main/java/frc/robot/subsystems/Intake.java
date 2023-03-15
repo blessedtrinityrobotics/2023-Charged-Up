@@ -16,7 +16,7 @@ public class Intake extends SubsystemBase {
   WPI_TalonSRX m_intakeLeft = new WPI_TalonSRX(ArmConstants.kIntakeLeftId);
   WPI_TalonSRX m_intakeRight = new WPI_TalonSRX(ArmConstants.kIntakeRightId);
 
-  public double intakeSpeed = 0.5;
+  public double intakeSpeed = 1;
   /** Creates a new Intake. */
   public Intake() {}
 

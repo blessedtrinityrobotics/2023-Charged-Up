@@ -46,8 +46,7 @@ public class RobotContainer {
   private final Elevator m_elevator = new Elevator();
   private final Arm m_arm = new Arm(); 
   private final Intake m_intake = new Intake();
-  private final Trajectory autoTrajectory;
-  private final Trajectory backTrajectory; 
+  private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake); 
 
   CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerId);
   CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerId);
@@ -55,16 +54,14 @@ public class RobotContainer {
   SendableChooser<Command> m_chooser = new SendableChooser<>();
 
   public RobotContainer() {
-    autoTrajectory = getTrajectory( "paths/output/MeterForward.wpilib.json");
-    backTrajectory = getTrajectory( "paths/output/Back.wpilib.json");
     configureBindings();
     configureAutoChooser();
   }
 
   private void configureAutoChooser() {
-    m_chooser.setDefaultOption("Drop & Drive", dropAndDriveBackAuto());
-    m_chooser.addOption("Drop & Charge", dropAndBalanceAuto());
-    m_chooser.addOption("Drive Forward", basicPathAuto());
+    m_chooser.setDefaultOption("Drop & Drive", m_autoManager.dropAndDriveBackAuto());
+    m_chooser.addOption("Drop & Charge", m_autoManager.dropAndBalanceAuto());
+    m_chooser.addOption("Drive & Balance", m_autoManager.driveAndBalanceAuto());
     SmartDashboard.putData("Choose Auto", m_chooser);
   }
 
@@ -99,70 +96,4 @@ public class RobotContainer {
     return m_chooser.getSelected();
   }
 
-  private Command basicPathAuto() {
-    // should we reset pose?
-    m_drive.resetOdometry(autoTrajectory.getInitialPose());
-    
-    return generateRamseteCommand(autoTrajectory)
-      .withTimeout(3)
-      .andThen(() -> m_drive.tankDriveVolts(0, 0)); 
-  }
-
-  private Command dropAndBalanceAuto() {
-    return new SequentialCommandGroup(
-      new InstantCommand(m_drive::brakeMotors, m_drive),
-      m_drive.driveBackDistanceCommand(0.2, 0.5),
-      m_drive.driveDistanceCommand(0.1, 0.5),
-      m_intake.pushOutCommand().withTimeout(1),
-      m_intake.stopIntake().withTimeout(1),
-      // todo: add drive up and then drive until balanced, just do it with commands 
-      //generateRamseteCommand(backTrajectory).withTimeout(3),// change to other
-      m_drive.driveBackDistanceCommand(3, 0.4),
-      new InstantCommand(() -> m_drive.tankDriveVolts(0, 0))
-    );
-  }
-
-  private Command dropAndDriveBackAuto() {
-    return new SequentialCommandGroup(
-      new InstantCommand(m_drive::brakeMotors, m_drive),
-      m_drive.driveBackDistanceCommand(0.2, 0.5),
-      m_drive.driveDistanceCommand(0.1, 0.5),
-      m_intake.pushOutCommand().withTimeout(1),
-      m_intake.stopIntake().withTimeout(1),
-      //generateRamseteCommand(backTrajectory).withTimeout(3),// change to other
-      m_drive.driveBackDistanceCommand(3, 0.4),
-      new InstantCommand(() -> m_drive.tankDriveVolts(0, 0))
-    );
-  }
-
-  private RamseteCommand generateRamseteCommand(Trajectory trajectory) {
-    return new RamseteCommand(
-        trajectory,
-        m_drive::getPose,
-        new RamseteController(AutoConstants.kRamseteB, AutoConstants.kRamseteZeta),
-        new SimpleMotorFeedforward(
-            DriveConstants.ksVolts,
-            DriveConstants.kvVoltSecondsPerMeter,
-            DriveConstants.kaVoltSecondsSquaredPerMeter),
-        DriveConstants.kDriveKinematics,
-        m_drive::getWheelSpeeds,
-        new PIDController(DriveConstants.kPDriveVel, 0, 0),
-        new PIDController(DriveConstants.kPDriveVel, 0, 0),
-        m_drive::tankDriveVolts,
-        m_drive);
-  }
-
-  private Trajectory getTrajectory(String traj) {
-    String trajectoryJSON = traj;
-    Trajectory trajectory = new Trajectory();
-
-    try {
-      Path trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON);
-      trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath);
-    } catch (IOException ex) {
-      DriverStation.reportError("Unable to open trajectory: " + trajectoryJSON, ex.getStackTrace());
-    }
-
-    return trajectory;
-  }
 }
