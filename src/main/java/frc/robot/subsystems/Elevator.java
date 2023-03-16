@@ -4,6 +4,7 @@
 
 package frc.robot.subsystems;
 
+import java.util.Map;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
@@ -16,11 +17,15 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ElevatorFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.interfaces.Accelerometer.Range;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ElevatorConstants;
+import frc.robot.Constants.ShuffleboardConstants;
 
 public class Elevator extends SubsystemBase {
   TimeOfFlight m_rangefinder = new TimeOfFlight(ElevatorConstants.kElevatorRangefinderId);
@@ -30,12 +35,21 @@ public class Elevator extends SubsystemBase {
   PIDController pid = new PIDController(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
 
   double targetPosition = 0;
-  double offsetPower = 0;
 
   /** Creates a new Elevator. */
   public Elevator() {
     m_rangefinder.setRangingMode(RangingMode.Short, 24);
     m_liftMotor.setNeutralMode(NeutralMode.Brake);
+
+    configureElevatorTab();
+  }
+
+  private void configureElevatorTab() {
+    ShuffleboardTab tab = Shuffleboard.getTab(ShuffleboardConstants.kElevatorTab); 
+    tab.addDouble("Elevator Height", m_rangefinder::getRange)
+      .withWidget(BuiltInWidgets.kNumberSlider)
+      .withProperties(Map.of("min", ElevatorConstants.kLowerRange, "max", ElevatorConstants.kUpperRange));
+    
   }
 
   public CommandBase liftCommand(DoubleSupplier direction) {

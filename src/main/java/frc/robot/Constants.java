@@ -38,13 +38,16 @@ public final class Constants {
         public static final double kMaxAccelerationMetersPerSecondSquared = 1;
         public static final double kRamseteB = 2;
         public static final double kRamseteZeta = 0.7; 
-				public static final double kRollBackDegrees = 13;
-				public static final double kBalancedDegrees = 10;
+        public static final double kRollBackDegrees = 13;
+        public static final double kBalancedDegrees = 10;
     }
 
     public static final class OIConstants {
         public static final int kDriverControllerId = 0;
         public static final int kOperatorControllerId = 1;
+
+        public static final double kBaselinePower = 0.3; // where motors should start at in Teleop
+        public static final double kMaxPower = 1.0; // max power that can be given to motors in teleop 
     }
 
     public static final class ArmConstants {
@@ -52,19 +55,23 @@ public final class Constants {
         public static final int kArmMotorId = 9;
         public static final int kIntakeLeftId = 11;
         public static final int kIntakeRightId = 10; 
-        public static final double kUpper = 90; // idk
+        public static final double kUpper = 360; // idk
         public static final double kLower = 0; 
         public static final String kEncoderOffsetKey = "EncoderOffset"; 
         public static final double kEncoderDistancePerRotation = 360; // to convert to degrees 
         public static final double kDefaultEncoderOffset = 0; 
 
-        public static final double kS = 0;
-        public static final double kG = 0;
-        public static final double kV = 0; 
+        public static final double kS = 2.3092;
+        public static final double kV = 0.0078214;
+        public static final double kA = 0.016976;
+        public static final double kG = 2.9327; 
+         
 
-        public static final double kP = 1;
+        public static final double kP = 0.0157;
         public static final double kI = 0;
         public static final double kD = 0;
+        public static final double kMaxVelocityRadPerSecond = 360;
+        public static final double kMaxAccelerationRadPerSecSquared = 360;
     }
 
     public static final class ElevatorConstants {
@@ -87,8 +94,12 @@ public final class Constants {
     public static final class ShuffleboardConstants {
         public static final String kArmTab = "Arm";
         public static final String kDriveTab = "Drive"; 
-				public static final String kAutoTab = "Auto";
-				public static final String kIntakeTab = "Intake";
-				public static final String kElevatorTab = "Elevator"; 
+        public static final String kAutoTab = "Auto";
+        public static final String kIntakeTab = "Intake";
+        public static final String kElevatorTab = "Elevator"; 
+    }
+
+    public static final class IntakeConstants {
+        public static final double kDefaultIntakeSpeed = 0.7; 
     }
 }

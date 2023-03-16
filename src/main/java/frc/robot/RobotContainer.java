@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.RamseteController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
@@ -26,6 +27,7 @@ import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -46,37 +48,39 @@ public class RobotContainer {
   private final Elevator m_elevator = new Elevator();
   private final Arm m_arm = new Arm(); 
   private final Intake m_intake = new Intake();
-  private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake); 
 
   CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerId);
   CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerId);
 
-  SendableChooser<Command> m_chooser = new SendableChooser<>();
+  private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake); 
 
   public RobotContainer() {
     configureBindings();
-    configureAutoChooser();
   }
 
-  private void configureAutoChooser() {
-    m_chooser.setDefaultOption("Drop & Drive", m_autoManager.dropAndDriveBackAuto());
-    m_chooser.addOption("Drop & Charge", m_autoManager.dropAndBalanceAuto());
-    m_chooser.addOption("Drive & Balance", m_autoManager.driveAndBalanceAuto());
-    SmartDashboard.putData("Choose Auto", m_chooser);
-  }
-
-  private double smoothInput(double val) {
-    return Math.pow(val, 3);
+  private double trimDriveInput(double joystickInput) {
+    // Make the lower bound of the stick 
+    double inputSign = Math.signum(joystickInput); 
+    double interpolatedInput = MathUtil.interpolate(OIConstants.kBaselinePower, OIConstants.kMaxPower, Math.abs(joystickInput));
+    return Math.pow(interpolatedInput, 2) * inputSign;
   }
 
   private void configureBindings() {
     m_drive.setDefaultCommand(
         m_drive.arcadeDriveCommand(
-            () -> -smoothInput(m_driverController.getLeftY()),
-            () -> smoothInput(m_driverController.getRightX())));
+            () -> -trimDriveInput(m_driverController.getLeftY()),
+            () -> trimDriveInput(m_driverController.getRightX())));
 
     m_elevator.setDefaultCommand(m_elevator.liftCommand(() -> -m_operatorController.getLeftY()));
-    m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> m_operatorController.getRightY())); 
+    m_operatorController
+    .y()
+    .onTrue(
+        Commands.run(
+            () -> {
+              m_arm.setGoal(30);
+              m_arm.enable();
+            },
+            m_arm));
 
     m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
     m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake()); 
@@ -90,10 +94,11 @@ public class RobotContainer {
     m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
 
     m_operatorController.x().onTrue(new InstantCommand(m_arm::resetEncoder, m_arm)); 
+ 
   }
 
   public Command getAutonomousCommand() {
-    return m_chooser.getSelected();
+    return m_autoManager.getChosenAuto();
   }
 
 }

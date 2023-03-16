@@ -8,6 +8,12 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import com.pathplanner.lib.PathConstraints;
+import com.pathplanner.lib.PathPlanner;
+import com.pathplanner.lib.PathPlannerTrajectory;
+import com.pathplanner.lib.commands.FollowPathWithEvents;
+import com.pathplanner.lib.commands.PPRamseteCommand;
+
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.RamseteController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
@@ -26,6 +32,7 @@ import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -43,6 +50,7 @@ import frc.robot.subsystems.Intake;
 
 /**
  * Organizational abstraction for the automous phase to de-clutter the RobotContainer
+ * 
  */
 public class AutonomousManager {
     private final Drive m_drive;
@@ -50,11 +58,42 @@ public class AutonomousManager {
     private final Arm m_arm;
     private final Intake m_intake;
 
+    SendableChooser<Command> m_chooser = new SendableChooser<>();
+
     public AutonomousManager(Drive drive, Elevator elevator, Arm arm, Intake intake) {
         m_drive = drive;
         m_elevator = elevator;
         m_arm = arm;
         m_intake = intake;
+
+        configureAutoChooser();
+    }
+
+    private void configureAutoChooser() {
+        m_chooser.setDefaultOption("Drive", driveForwardAuto());
+        m_chooser.addOption("Balance", driveAndBalanceAuto());
+        m_chooser.addOption("Drop Low & Balance", dropAndBalanceAuto());
+    }
+
+    public Command getChosenAuto() {
+        return m_chooser.getSelected();
+    }
+    
+
+    public Command dropAndDriveShort() {
+        PathPlannerTrajectory path = PathPlanner.loadPath("DriveOutShort", 
+            new PathConstraints(AutoConstants.kMaxSpeedMetersPerSecond, AutoConstants.kMaxAccelerationMetersPerSecondSquared));
+
+        return new SequentialCommandGroup(
+            m_drive.followTrajectoryCommand(path, true)
+        );
+    }
+
+    public Command driveForwardAuto() {
+        return new SequentialCommandGroup(
+            m_drive.driveDistanceCommand(3, 0.5).withTimeout(3),
+            m_drive.stopMotorCommand()
+        );
     }
 
     public Command dropAndBalanceAuto() {
@@ -64,7 +103,7 @@ public class AutonomousManager {
                 m_drive.driveDistanceCommand(0.1, 0.5),
                 m_intake.pushOutCommand().withTimeout(1),
                 m_intake.stopIntake().withTimeout(1),
-								m_drive.driveUntilBalanced(-0.4),
+				m_drive.driveUntilBalanced(-0.4));
     }
 
     public Command driveAndBalanceAuto() {
@@ -82,7 +121,7 @@ public class AutonomousManager {
                 m_intake.stopIntake().withTimeout(1),
                 // generateRamseteCommand(backTrajectory).withTimeout(3),// change to other
                 m_drive.driveBackDistanceCommand(3, 0.4),
-                new InstantCommand(() -> m_drive.tankDriveVolts(0, 0)));
+                m_drive.stopMotorCommand());
     }
 
     private RamseteCommand generateRamseteCommand(Trajectory trajectory) {

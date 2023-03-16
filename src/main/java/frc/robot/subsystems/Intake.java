@@ -5,40 +5,47 @@
 package frc.robot.subsystems;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
+import edu.wpi.first.networktables.DoubleEntry;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.ArmConstants;
+import frc.robot.Constants.IntakeConstants;
+import frc.robot.Constants.ShuffleboardConstants;
 
 public class Intake extends SubsystemBase {
   WPI_TalonSRX m_intakeLeft = new WPI_TalonSRX(ArmConstants.kIntakeLeftId);
   WPI_TalonSRX m_intakeRight = new WPI_TalonSRX(ArmConstants.kIntakeRightId);
 
-  public double intakeSpeed = 1;
   /** Creates a new Intake. */
-  public Intake() {}
+  public Intake() {
+    m_intakeLeft.setNeutralMode(NeutralMode.Brake);
+    m_intakeRight.setNeutralMode(NeutralMode.Brake);
+
+    configureIntakeTab();
+  }
+
+  public void configureIntakeTab() {
+    ShuffleboardTab tab = Shuffleboard.getTab(ShuffleboardConstants.kIntakeTab);
+    
+  }
 
   public void intake(double direction) {
     m_intakeLeft.set(ControlMode.PercentOutput, direction);
     m_intakeRight.set(ControlMode.PercentOutput, direction);
-
-    if (direction < 0) 
-      SmartDashboard.putBoolean("Intaking", true);
-    else if (direction > 0)
-      SmartDashboard.putBoolean("Outaking", true);
-    else
-      SmartDashboard.putBoolean("Outaking", false);
-      SmartDashboard.putBoolean("Intaking", false);
   }
   // todo, switch in and out 
   public Command pushOutCommand() {
-    return run(() -> intake(intakeSpeed)); 
+    return run(() -> intake(IntakeConstants.kDefaultIntakeSpeed)); 
   }
 
   public Command pullInCommand() {
-    return run(() -> intake(-intakeSpeed));
+    return run(() -> intake(-IntakeConstants.kDefaultIntakeSpeed));
   }
 
   public Command stopIntake() {
