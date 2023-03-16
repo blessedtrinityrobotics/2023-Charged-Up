@@ -26,6 +26,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.ShuffleboardConstants;
 
 public class Drive extends SubsystemBase {
@@ -214,16 +215,16 @@ public class Drive extends SubsystemBase {
         .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
   }
 
-  public CommandBase driveUntilBalanced(double rollBackDegrees, double balancedDegrees, double power) {
+  public CommandBase driveUntilBalanced(double power) {
     return runOnce(
         () -> resetGyro())
         // Drive forward at specified speed
         .andThen(
             run(() -> m_drive.arcadeDrive(power, 0))
-                .until(() -> getRoll() > rollBackDegrees))
+                .until(() -> getRoll() > AutoConstants.kRollBackDegrees))
         .andThen(
             run(() -> m_drive.arcadeDrive(power, 0))
-                .until(() -> getRoll() < balancedDegrees))
+                .until(() -> getRoll() < AutoConstants.kBalancedDegrees))
         .andThen(driveBackDistanceCommand(0.2, power))
         .finallyDo(interrupted -> m_drive.arcadeDrive(0, 0));
   }

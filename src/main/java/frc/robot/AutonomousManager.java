@@ -41,6 +41,9 @@ import frc.robot.subsystems.Drive;
 import frc.robot.subsystems.Elevator;
 import frc.robot.subsystems.Intake;
 
+/**
+ * Organizational abstraction for the automous phase to de-clutter the RobotContainer
+ */
 public class AutonomousManager {
     private final Drive m_drive;
     private final Elevator m_elevator;
@@ -54,14 +57,6 @@ public class AutonomousManager {
         m_intake = intake;
     }
 
-    // private Command basicPathAuto() {
-    //     m_drive.resetOdometry(autoTrajectory.getInitialPose());
-
-    //     return generateRamseteCommand(autoTrajectory)
-    //             .withTimeout(3)
-    //             .andThen(() -> m_drive.tankDriveVolts(0, 0));
-    // }
-
     public Command dropAndBalanceAuto() {
         return new SequentialCommandGroup(
                 new InstantCommand(m_drive::brakeMotors, m_drive),
@@ -69,16 +64,13 @@ public class AutonomousManager {
                 m_drive.driveDistanceCommand(0.1, 0.5),
                 m_intake.pushOutCommand().withTimeout(1),
                 m_intake.stopIntake().withTimeout(1),
-                // todo: add drive up and then drive until balanced, just do it with commands
-                // generateRamseteCommand(backTrajectory).withTimeout(3),// change to other
-                m_drive.driveBackDistanceCommand(3, 0.4),
-                new InstantCommand(() -> m_drive.tankDriveVolts(0, 0)));
+								m_drive.driveUntilBalanced(-0.4),
     }
 
     public Command driveAndBalanceAuto() {
         return new SequentialCommandGroup(
                 new InstantCommand(m_drive::brakeMotors, m_drive),
-                m_drive.driveUntilBalanced(13, 10, 0.4));
+                m_drive.driveUntilBalanced(0.4));
     }
 
     public Command dropAndDriveBackAuto() {

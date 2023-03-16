@@ -34,13 +34,12 @@ public final class Constants {
     }
 
     public static final class AutoConstants {
-
         public static final double kMaxSpeedMetersPerSecond = 1;
         public static final double kMaxAccelerationMetersPerSecondSquared = 1;
-
         public static final double kRamseteB = 2;
         public static final double kRamseteZeta = 0.7; 
-
+				public static final double kRollBackDegrees = 13;
+				public static final double kBalancedDegrees = 10;
     }
 
     public static final class OIConstants {
@@ -88,5 +87,8 @@ public final class Constants {
     public static final class ShuffleboardConstants {
         public static final String kArmTab = "Arm";
         public static final String kDriveTab = "Drive"; 
+				public static final String kAutoTab = "Auto";
+				public static final String kIntakeTab = "Intake";
+				public static final String kElevatorTab = "Elevator"; 
     }
 }
