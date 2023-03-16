@@ -254,7 +254,7 @@ public class Drive extends SubsystemBase {
     bl.setNeutralMode(NeutralMode.Coast);
     fr.setNeutralMode(NeutralMode.Coast);
     br.setNeutralMode(NeutralMode.Coast);
-    
+
     SmartDashboard.putBoolean("Motors Braked", false);
 
   }
