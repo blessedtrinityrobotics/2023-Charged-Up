@@ -58,20 +58,21 @@ public final class Constants {
         public static final double kUpper = 360; // idk
         public static final double kLower = 0; 
         public static final String kEncoderOffsetKey = "EncoderOffset"; 
-        public static final double kEncoderDistancePerRotation = 360; // to convert to degrees 
+        public static final double kEncoderDistancePerRotation = 6.28 * (12.0/25.0); // to convert to degrees 
         public static final double kDefaultEncoderOffset = 0; 
 
-        public static final double kS = 2.3092;
-        public static final double kV = 0.0078214;
-        public static final double kA = 0.016976;
-        public static final double kG = 2.9327; 
+        public static final double kS = 0.96502;
+        public static final double kV = 0.77919;
+        public static final double kA = 0.39466;
+        public static final double kG = 2.4006; 
+        public static final double kArmAngleOffset = -2.5437; 
          
 
-        public static final double kP = 0.0157;
+        public static final double kP = 3.646;
         public static final double kI = 0;
         public static final double kD = 0;
-        public static final double kMaxVelocityRadPerSecond = 360;
-        public static final double kMaxAccelerationRadPerSecSquared = 360;
+        public static final double kMaxVelocityRadPerSecond =5;
+        public static final double kMaxAccelerationRadPerSecSquared = 10;
     }
 
     public static final class ElevatorConstants {

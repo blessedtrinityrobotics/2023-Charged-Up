@@ -37,10 +37,7 @@ public class Arm extends ProfiledPIDSubsystem {
   DutyCycleEncoder m_encoder = new DutyCycleEncoder(ArmConstants.kArmEncoderPort); 
 
   WPI_TalonSRX m_motor = new WPI_TalonSRX(ArmConstants.kArmMotorId); 
-  
   ArmFeedforward m_feedforward = new ArmFeedforward(ArmConstants.kS, ArmConstants.kG, ArmConstants.kV, ArmConstants.kA);
-
-
 
   /** Creates a new Arm. */
   public Arm() {
@@ -55,10 +52,9 @@ public class Arm extends ProfiledPIDSubsystem {
         0);
 
     Preferences.initDouble(ArmConstants.kEncoderOffsetKey, ArmConstants.kDefaultEncoderOffset);
-
+    m_motor.setInverted(true);
     m_encoder.setDistancePerRotation(ArmConstants.kEncoderDistancePerRotation);
     m_encoder.setPositionOffset(Preferences.getDouble(ArmConstants.kEncoderOffsetKey, ArmConstants.kDefaultEncoderOffset));
-    m_motor.setInverted(true);
     m_motor.setNeutralMode(NeutralMode.Brake);
 
     configureArmTab();
@@ -71,9 +67,11 @@ public class Arm extends ProfiledPIDSubsystem {
     ShuffleboardTab armTab = Shuffleboard.getTab(ShuffleboardConstants.kArmTab);
     armTab.add("Offset Command", setEncoderOffsetCommand()).withSize(2, 1);
     armTab.add("Reset Command", runOnce(this::resetEncoder)).withSize(2, 1);
-    armTab.addDouble("Arm Angle", () -> m_encoder.getDistance())
-      .withWidget(BuiltInWidgets.kDial)
-      .withProperties(Map.of("min", ArmConstants.kLower, "max", ArmConstants.kUpper)); 
+    armTab.addDouble("Arm Angle", () -> getMeasurement());
+    armTab.addDouble("Error", getController()::getPositionError);
+    
+      // .withWidget(BuiltInWidgets.kDial)
+      // .withProperties(Map.of("min", ArmConstants.kLower, "max", ArmConstants.kUpper)); 
   }
 
   @Override
@@ -86,7 +84,7 @@ public class Arm extends ProfiledPIDSubsystem {
 
   @Override
   public double getMeasurement() {
-    return m_encoder.getDistance(); // + arm offset 
+    return m_encoder.getDistance();  
   }
 
 
