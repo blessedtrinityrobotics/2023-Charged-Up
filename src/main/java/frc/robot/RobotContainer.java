@@ -82,20 +82,34 @@ public class RobotContainer {
 
     m_elevator.setDefaultCommand(m_elevator.liftCommand(() -> -m_operatorController.getLeftY()));
     // m_armStupid.setDefaultCommand(m_armStupid.moveArmCommand(() -> m_operatorController.getRightY()));
-    // m_operatorController
-    // .y()
-    // .onTrue(
-    //     Commands.run(
-    //         () -> {
-    //           m_arm.setGoal(1);
-    //         },
-    //         m_arm));
-    m_arm.enable();
-    
+    m_operatorController
+    .y()
+    .onTrue(
+        Commands.runOnce(
+            () -> {
+              m_arm.enablePID();
+            },
+            m_arm));
+    m_operatorController
+    .x()
+    .onTrue(
+        Commands.runOnce(
+            () -> {
+              m_arm.disablePID();
+            },
+            m_arm));    
     // m_arm.setDefaultCommand(m_arm.run(() -> m_arm.offsetGoal(applyDeadzone(m_operatorController.getRightY(), 0.3) * 0.1)));
-    m_arm.setDefaultCommand(m_arm.run(() -> m_arm.setGoal(
+    m_arm.setDefaultCommand(m_arm.run(() -> m_arm.setSetpoint(
       MathUtil.interpolate(0, 1.5, m_operatorController.getRightTriggerAxis())
     )));
+    // m_operatorController
+    // .a()
+    // .onTrue(
+    //     Commands.runOnce(
+    //         () -> {
+    //           m_arm.setSetpoint(1);
+    //         },
+    //         m_arm)); 
 
     m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
     m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake()); 
@@ -105,8 +119,8 @@ public class RobotContainer {
     m_driverController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
     m_driverController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
 
-    m_operatorController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
-    m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
+    // m_operatorController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
+    // m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
 
     //m_operatorController.x().onTrue(new InstantCommand(m_arm::resetEncoder, m_arm)); 
  

@@ -38,15 +38,13 @@ import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.ShuffleboardConstants;
 
 public class Drive extends SubsystemBase {
-  WPI_TalonFX fl = new WPI_TalonFX(DriveConstants.kFrontLeftDriveId);
-  WPI_TalonFX bl = new WPI_TalonFX(DriveConstants.kBackLeftDriveId);
-  WPI_TalonFX fr = new WPI_TalonFX(DriveConstants.kFrontRightDriveId);
-  WPI_TalonFX br = new WPI_TalonFX(DriveConstants.kBackRightDriveId);
+  WPI_TalonFX m_frontLeft = new WPI_TalonFX(DriveConstants.kFrontLeftDriveId);
+  WPI_TalonFX m_backLeft = new WPI_TalonFX(DriveConstants.kBackLeftDriveId);
+  WPI_TalonFX m_frontRight = new WPI_TalonFX(DriveConstants.kFrontRightDriveId);
+  WPI_TalonFX m_backRight = new WPI_TalonFX(DriveConstants.kBackRightDriveId);
 
-  MotorControllerGroup m_left = new MotorControllerGroup(fl, bl);
-  MotorControllerGroup m_right = new MotorControllerGroup(fr, br);
-
-  private double reverseMultipler = 1;
+  MotorControllerGroup m_left = new MotorControllerGroup(m_frontLeft, m_backLeft);
+  MotorControllerGroup m_right = new MotorControllerGroup(m_frontRight, m_backRight);
 
   private final Encoder m_leftEncoder = new Encoder(
       DriveConstants.kLeftEncoderPorts[0],
@@ -62,6 +60,7 @@ public class Drive extends SubsystemBase {
   WPI_Pigeon2 m_gyro = new WPI_Pigeon2(DriveConstants.kPigeonId);
   DifferentialDrive m_drive = new DifferentialDrive(m_left, m_right);
   DifferentialDriveOdometry m_odometry;
+  boolean m_braked = false; 
 
   /** Creates a new Drivetrain. */
   public Drive() {
@@ -85,7 +84,7 @@ public class Drive extends SubsystemBase {
     encoderLayout.add("Right Encoder", m_rightEncoder);
     driveTab.add("Gyro", m_gyro);
     driveTab.addDouble("Roll", () -> getRoll());
-
+    driveTab.addBoolean("Motors Braked", () -> m_braked); 
   }
 
   public void resetEncoders() {
@@ -242,33 +241,25 @@ public class Drive extends SubsystemBase {
   }
 
   public void brakeMotors() {
-    fl.setNeutralMode(NeutralMode.Brake);
-    bl.setNeutralMode(NeutralMode.Brake);
-    fr.setNeutralMode(NeutralMode.Brake);
-    br.setNeutralMode(NeutralMode.Brake);
-    SmartDashboard.putBoolean("Motors Braked", true);
+    m_frontLeft.setNeutralMode(NeutralMode.Brake);
+    m_backLeft.setNeutralMode(NeutralMode.Brake);
+    m_frontRight.setNeutralMode(NeutralMode.Brake);
+    m_backRight.setNeutralMode(NeutralMode.Brake);
+    
+    m_braked = true;
   }
 
   public CommandBase stopMotorCommand() {
     return runOnce(() -> m_drive.tankDrive(0, 0));
   }
 
-  public void reverseDirection() {
-    reverseMultipler = -1;
-  }
-
-  public void forwardDirection() {
-    reverseMultipler = 1;
-  }
 
   public void coastMotors() {
-    fl.setNeutralMode(NeutralMode.Coast);
-    bl.setNeutralMode(NeutralMode.Coast);
-    fr.setNeutralMode(NeutralMode.Coast);
-    br.setNeutralMode(NeutralMode.Coast);
-
-    SmartDashboard.putBoolean("Motors Braked", false);
-
+    m_frontLeft.setNeutralMode(NeutralMode.Coast);
+    m_backLeft.setNeutralMode(NeutralMode.Coast);
+    m_frontRight.setNeutralMode(NeutralMode.Coast);
+    m_backRight.setNeutralMode(NeutralMode.Coast);
+    m_braked = false;
   }
 
   public double getRoll() {

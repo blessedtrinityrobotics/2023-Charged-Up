@@ -68,10 +68,10 @@ public final class Constants {
         public static final double kArmAngleOffset = -2.5437; 
          
 
-        public static final double kP = 3.646;
+        public static final double kP = 20.646;
         public static final double kI = 0;
-        public static final double kD = 0;
-        public static final double kMaxVelocityRadPerSecond =5;
+        public static final double kD = 0.25;
+        public static final double kMaxVelocityRadPerSecond = 5;
         public static final double kMaxAccelerationRadPerSecSquared = 10;
     }
 
