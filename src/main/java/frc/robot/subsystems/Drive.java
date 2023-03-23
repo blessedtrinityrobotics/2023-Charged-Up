@@ -79,12 +79,14 @@ public class Drive extends SubsystemBase {
 
   private void configureDriveTab() {
     ShuffleboardTab driveTab = Shuffleboard.getTab(ShuffleboardConstants.kDriveTab);
-    ShuffleboardLayout encoderLayout = driveTab.getLayout("Encoders", BuiltInLayouts.kList);
+    ShuffleboardLayout encoderLayout = driveTab.getLayout("Encoders", BuiltInLayouts.kList)
+      .withSize(2, 2);
     encoderLayout.add("Left Encoder", m_leftEncoder);
     encoderLayout.add("Right Encoder", m_rightEncoder);
     driveTab.add("Gyro", m_gyro);
     driveTab.addDouble("Roll", () -> getRoll());
-    driveTab.addBoolean("Motors Braked", () -> m_braked); 
+    driveTab.addBoolean("Motors Braked", () -> m_braked);
+    // driveTab.addCamera("Webcam", "USB Camera 0"); 
   }
 
   public void resetEncoders() {

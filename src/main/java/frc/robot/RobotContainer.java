@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.RamseteController;
@@ -47,30 +48,32 @@ import frc.robot.subsystems.Intake;
 public class RobotContainer {
   private final Drive m_drive = new Drive();
   private final Elevator m_elevator = new Elevator();
-  private final Arm m_arm = new Arm(); 
+  private final Arm m_arm = new Arm();
   // private final ArmStupid m_armStupid = new ArmStupid();
   private final Intake m_intake = new Intake();
 
   CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerId);
   CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerId);
 
- private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake); 
+  private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake);
 
   public RobotContainer() {
+    CameraServer.startAutomaticCapture();
     configureBindings();
   }
 
   private double trimDriveInput(double joystickInput) {
-    // Make the lower bound of the stick 
-    double inputSign = Math.signum(joystickInput); 
-    double interpolatedInput = MathUtil.interpolate(OIConstants.kBaselinePower, OIConstants.kMaxPower, Math.abs(joystickInput));
+    // Make the lower bound of the stick
+    double inputSign = Math.signum(joystickInput);
+    double interpolatedInput = MathUtil.interpolate(OIConstants.kBaselinePower, OIConstants.kMaxPower,
+        Math.abs(joystickInput));
     return Math.pow(interpolatedInput, 2) * inputSign;
   }
 
   private double applyDeadzone(double input, double deadzone) {
-    if (input < deadzone)
+    if (Math.abs(input) < deadzone)
       return 0;
-    else 
+    else
       return input;
   }
 
@@ -80,55 +83,34 @@ public class RobotContainer {
             () -> -trimDriveInput(m_driverController.getLeftY()),
             () -> trimDriveInput(m_driverController.getRightX())));
 
-    m_elevator.setDefaultCommand(m_elevator.liftCommand(() -> -m_operatorController.getLeftY()));
-    // m_armStupid.setDefaultCommand(m_armStupid.moveArmCommand(() -> m_operatorController.getRightY()));
-    m_operatorController
-    .y()
-    .onTrue(
-        Commands.runOnce(
-            () -> {
-              m_arm.enablePID();
-            },
-            m_arm));
-    m_operatorController
-    .x()
-    .onTrue(
-        Commands.runOnce(
-            () -> {
-              m_arm.disablePID();
-            },
-            m_arm));    
-    // m_arm.setDefaultCommand(m_arm.run(() -> m_arm.offsetGoal(applyDeadzone(m_operatorController.getRightY(), 0.3) * 0.1)));
-    m_arm.setDefaultCommand(m_arm.run(() -> m_arm.setSetpoint(
-      MathUtil.interpolate(0, 1.5, m_operatorController.getRightTriggerAxis())
-    )));
-    // m_operatorController
-    // .a()
-    // .onTrue(
-    //     Commands.runOnce(
-    //         () -> {
-    //           m_arm.setSetpoint(1);
-    //         },
-    //         m_arm)); 
+    // m_elevator.setDefaultCommand(m_elevator.liftCommand(() -> -m_operatorController.getLeftY()));
+    // m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> -m_operatorController.getRightY()));
+    m_arm.setDefaultCommand(m_arm.setSetpointCommand(() -> -applyDeadzone(m_operatorController.getRightY(), 0.1)));
+    m_elevator.setDefaultCommand(m_elevator.setSetpointCommand(() -> -applyDeadzone(m_operatorController.getLeftY(), 0.1)));
+
+
+    m_operatorController.y().onTrue(m_arm.runOnce(() -> m_arm.enablePID()));
+    m_operatorController.x().onTrue(m_arm.runOnce(() -> m_arm.disablePID()));
+    m_operatorController.a().onTrue(m_elevator.runOnce(() -> m_elevator.enablePID()));
+    m_operatorController.b().onTrue(m_elevator.runOnce(() -> m_elevator.disablePID())); 
 
     m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
-    m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake()); 
+    m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake());
     m_operatorController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
-    m_operatorController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake()); 
+    m_operatorController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake());
 
     m_driverController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
     m_driverController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
 
-    // m_operatorController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
-    // m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
+    // m_operatorController.a().onTrue(new InstantCommand(m_drive::coastMotors,
+    // m_drive));
+    // m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors,
+    // m_drive));
 
-    //m_operatorController.x().onTrue(new InstantCommand(m_arm::resetEncoder, m_arm)); 
- 
   }
 
   public Command getAutonomousCommand() {
-   // return m_autoManager.getChosenAuto();
-   return new InstantCommand();
+    return m_autoManager.getChosenAuto();
   }
 
 }

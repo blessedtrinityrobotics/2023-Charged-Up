@@ -45,6 +45,7 @@ public final class Constants {
     public static final class OIConstants {
         public static final int kDriverControllerId = 0;
         public static final int kOperatorControllerId = 1;
+        public static final int kWebcamId = 0; 
 
         public static final double kBaselinePower = 0.3; // where motors should start at in Teleop
         public static final double kMaxPower = 1.0; // max power that can be given to motors in teleop 
@@ -52,44 +53,46 @@ public final class Constants {
 
     public static final class ArmConstants {
         public static final int kArmEncoderPort = 9;
-        public static final int kArmMotorId = 9;
+        public static final int kArmMotorId = 1;
         public static final int kIntakeLeftId = 11;
         public static final int kIntakeRightId = 10; 
-        public static final double kUpper = 360; // idk
-        public static final double kLower = 0; 
+        public static final double kUpper = 0.75; // idk
+        public static final double kLower = 0.3; 
         public static final String kEncoderOffsetKey = "EncoderOffset"; 
         public static final double kEncoderDistancePerRotation = 6.28 * (12.0/25.0); // to convert to degrees 
-        public static final double kDefaultEncoderOffset = 0; 
+        public static final double kDefaultEncoderOffset = 0.25; 
 
         public static final double kS = 0.96502;
         public static final double kV = 0.77919;
         public static final double kA = 0.39466;
         public static final double kG = 2.4006; 
         public static final double kArmAngleOffset = -2.5437; 
+        public static final double kMaxPower = 0.2;
+        public static final double kMinPower = -0.2;
          
 
-        public static final double kP = 20.646;
+        public static final double kP = 2;
         public static final double kI = 0;
-        public static final double kD = 0.25;
+        public static final double kD = 0;
         public static final double kMaxVelocityRadPerSecond = 5;
         public static final double kMaxAccelerationRadPerSecSquared = 10;
     }
 
     public static final class ElevatorConstants {
-        public static final int kElevatorRangefinderId = 12; 
-        public static final int kElevatorMotorId = 1; 
+        public static final int kElevatorRangefinderId = 15; 
+        public static final int kElevatorMotorId = 12; 
 
         public static final double kUpperRange = 730; // millis
         public static final double kLowerRange = 130; // mills
-        // 43.5 inches tall 
-
         public static final double kS = 0;
         public static final double kG = 0;
         public static final double kV = 0; 
 
         public static final double kP = 1;
         public static final double kI = 0;
-        public static final double kD = 0; 
+        public static final double kD = 0;
+        public static int kMinPower = -1;
+        public static int kMaxPower = 1; 
     }
 
     public static final class ShuffleboardConstants {

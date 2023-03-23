@@ -32,14 +32,17 @@ public class Elevator extends SubsystemBase {
   WPI_TalonFX m_liftMotor = new WPI_TalonFX(ElevatorConstants.kElevatorMotorId);
 
   ElevatorFeedforward feedforward = new ElevatorFeedforward(ElevatorConstants.kS, ElevatorConstants.kG, ElevatorConstants.kV);
-  PIDController pid = new PIDController(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
+  PIDController m_controller = new PIDController(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
 
-  double targetPosition = 0;
+  boolean enabled = false; 
+  double output = 0; 
 
   /** Creates a new Elevator. */
   public Elevator() {
     m_rangefinder.setRangingMode(RangingMode.Short, 24);
     m_liftMotor.setNeutralMode(NeutralMode.Brake);
+    m_controller.setTolerance(10.0);
+    m_controller.setSetpoint(getMeasurement());
 
     configureElevatorTab();
   }
@@ -49,6 +52,8 @@ public class Elevator extends SubsystemBase {
     tab.addDouble("Elevator Height", m_rangefinder::getRange)
       .withWidget(BuiltInWidgets.kNumberSlider)
       .withProperties(Map.of("min", ElevatorConstants.kLowerRange, "max", ElevatorConstants.kUpperRange));
+    tab.add("PID", m_controller);
+    tab.addBoolean("At setpoint", m_controller::atSetpoint); 
     
   }
 
@@ -65,15 +70,34 @@ public class Elevator extends SubsystemBase {
     });
   }
 
-  public void resetTarget() {
-    targetPosition = m_rangefinder.getRange() / 1000;
+  public CommandBase setSetpointCommand(DoubleSupplier direction) {
+    return runOnce(() -> {
+      double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble() * 5, ElevatorConstants.kLowerRange, ElevatorConstants.kUpperRange);
+      m_controller.setSetpoint(newSetpoint);
+    }); 
   }
+
+  public void enablePID() {
+    enabled = true;
+  }
+  
+  public void disablePID() {
+    enabled = false; 
+  }
+
 
   @Override
   public void periodic() {
     // double output = feedforward.calculate(0.2) + pid.calculate(m_rangefinder.getRange() / 1000, targetPosition);
     // m_liftMotor.setVoltage(output);
-    
-     SmartDashboard.putNumber("Range", m_rangefinder.getRange());
+    output = 0.075 + MathUtil.clamp(m_controller.calculate(getMeasurement()), ElevatorConstants.kMinPower, ElevatorConstants.kMaxPower); 
+    if (enabled == true)
+      m_liftMotor.set(ControlMode.PercentOutput, output); 
+
+
+  }
+
+  private double getMeasurement() {
+    return m_rangefinder.getRange();
   }
 }

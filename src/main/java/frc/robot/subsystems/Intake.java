@@ -45,7 +45,7 @@ public class Intake extends SubsystemBase {
   }
 
   public Command pullInCommand() {
-    return run(() -> intake(-IntakeConstants.kDefaultIntakeSpeed));
+    return run(() -> intake(-0.4));
   }
 
   public Command stopIntake() {
