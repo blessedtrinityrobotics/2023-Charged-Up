@@ -39,32 +39,33 @@ public class Arm extends SubsystemBase {
   DutyCycleEncoder m_encoder = new DutyCycleEncoder(ArmConstants.kArmEncoderPort); 
 
   WPI_TalonFX m_motor = new WPI_TalonFX(ArmConstants.kArmMotorId); 
-  ArmFeedforward m_feedforward = new ArmFeedforward(ArmConstants.kS, ArmConstants.kG, ArmConstants.kV, ArmConstants.kA);
   PIDController m_controller = new PIDController(ArmConstants.kP,0,0);
   ShuffleboardTab armTab; 
   boolean enabled = false;
+  public boolean manualOverride = false;
   double output = 0.0;  
 
   /** Creates a new Arm. */
   public Arm() {
-
     // m_motor.setInverted(true);
     m_motor.setNeutralMode(NeutralMode.Brake);
 
     m_encoder.setDistancePerRotation(ArmConstants.kEncoderDistancePerRotation);
     m_encoder.setPositionOffset(ArmConstants.kDefaultEncoderOffset);
-    // m_encoder.reset();
 
     disablePID();
     m_controller.setTolerance(0.01);
-    m_controller.setSetpoint(getMeasurement());
-
+    
     configureArmTab();
+    m_controller.setSetpoint(ArmConstants.kUpper);
   }
 
 
   private void configureArmTab() {
     armTab = Shuffleboard.getTab(ShuffleboardConstants.kArmTab);
+    ShuffleboardTab driveTab = Shuffleboard.getTab(ShuffleboardConstants.kDriveTab);
+    driveTab.addBoolean("Manual Arm Override", () -> manualOverride); 
+    driveTab.addDouble("Arm Angle", () -> getMeasurement()); 
     armTab.add("Offset Command", setEncoderOffsetCommand()).withSize(2, 1);
     armTab.add("Reset Command", runOnce(this::resetEncoder).withName("Reset Encoder")).withSize(2, 1);
     armTab.addDouble("Arm Angle", () -> getMeasurement());
@@ -73,27 +74,28 @@ public class Arm extends SubsystemBase {
     armTab.add("PID", m_controller);
     armTab.addBoolean("At setpoint", m_controller::atSetpoint);
     armTab.addDouble("PID Output", () -> output); 
+    armTab.addDouble("Arm power", m_motor::get);
   }
 
-  // @Override
-  // public void useOutput(double output, double setpoint) {
-    
-  //   // Calculate the feedforward from the sepoint
-  //   // double feedforward = m_feedforward.calculate(setpoint.position, setpoint.velocity);
-  //   double feedforward = 0; 
-  //   // Add the feedforward to the PID output to get the motor output
-  //   m_motor.setVoltage(output + feedforward);
-  // }
-
   public double getMeasurement() {
-    return m_encoder.getAbsolutePosition();  
+    return m_encoder.getDistance();  
+  }
+
+  public void enableOverride() {
+    manualOverride = true; 
+    disablePID();
+  }
+
+  public void disableOverride() {
+    enablePID();
+    manualOverride = false; 
   }
 
   public CommandBase setSetpointCommand(DoubleSupplier direction) {
-    return runOnce(() -> {
-      double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble() * 0.01, ArmConstants.kLower, ArmConstants.kUpper);
-      m_controller.setSetpoint(newSetpoint);
-    }); 
+      return run(() -> {
+        double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble(), ArmConstants.kLower, ArmConstants.kUpper);
+        m_controller.setSetpoint(newSetpoint);
+      }); 
   }
 
   public void enablePID() {
@@ -110,27 +112,40 @@ public class Arm extends SubsystemBase {
 
   public Command moveArmCommand(DoubleSupplier direction) {
     return run(() -> {
-      double power = direction.getAsDouble(); 
-      if (m_encoder.getDistance() < ArmConstants.kLower) 
-        power = Math.max(0, power);
-      else if (m_encoder.getDistance() > ArmConstants.kUpper)
-        power = Math.min(0, power);
+      // double power = direction.getAsDouble(); 
+      // if (m_encoder.getDistance() < ArmConstants.kLower) 
+      //   power = Math.max(0, power);
+      // else if (m_encoder.getDistance() > ArmConstants.kUpper)
+      //   power = Math.min(0, power);
 
-      m_motor.set(ControlMode.PercentOutput, MathUtil.clamp(power, -0.2, 0.2));
+      m_motor.set(ControlMode.PercentOutput, MathUtil.clamp(direction.getAsDouble(), -0.2, 0.3));
     });
+  }
+
+  public Command setRetractedCommand() {
+    return runOnce(() -> m_controller.setSetpoint(ArmConstants.kUpper)); 
+  }
+
+  public Command setHighCommand() {
+    return run(() -> m_controller.setSetpoint(ArmConstants.kHighPosition))
+      .until(m_controller::atSetpoint); 
+  }
+
+  public Command setHorizontalCommand() {
+    return runOnce(() -> m_controller.setSetpoint(ArmConstants.kLower)); 
   }
 
   public CommandBase setEncoderOffsetCommand() {
     return runOnce(() -> {
-      // resetEncoder();
-      // Preferences.setDouble(ArmConstants.kEncoderOffsetKey, m_encoder.getPositionOffset());
+      resetEncoder();
+      Preferences.setDouble(ArmConstants.kEncoderOffsetKey, m_encoder.getPositionOffset());
     }).withName("Set Encoder Offset");
   }
 
   @Override
   public void periodic() {
-    output = MathUtil.clamp(m_controller.calculate(getMeasurement()), ArmConstants.kMinPower, ArmConstants.kMaxPower); 
-    if (enabled == true)
+    if (enabled)
+      output = MathUtil.clamp(m_controller.calculate(getMeasurement()), ArmConstants.kMinPower, ArmConstants.kMaxPower); 
       m_motor.set(ControlMode.PercentOutput, output); 
   }
 

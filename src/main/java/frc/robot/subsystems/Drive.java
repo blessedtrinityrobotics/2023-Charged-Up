@@ -73,20 +73,101 @@ public class Drive extends SubsystemBase {
     m_gyro.reset();
     resetEncoders();
     m_odometry = new DifferentialDriveOdometry(m_gyro.getRotation2d(), 0, 0);
+    brakeMotors();
 
     configureDriveTab();
   }
 
   private void configureDriveTab() {
     ShuffleboardTab driveTab = Shuffleboard.getTab(ShuffleboardConstants.kDriveTab);
-    ShuffleboardLayout encoderLayout = driveTab.getLayout("Encoders", BuiltInLayouts.kList)
+    ShuffleboardTab autoTab = Shuffleboard.getTab(ShuffleboardConstants.kAutoTab); 
+    ShuffleboardLayout encoderLayout = autoTab.getLayout("Encoders", BuiltInLayouts.kList)
       .withSize(2, 2);
     encoderLayout.add("Left Encoder", m_leftEncoder);
     encoderLayout.add("Right Encoder", m_rightEncoder);
-    driveTab.add("Gyro", m_gyro);
-    driveTab.addDouble("Roll", () -> getRoll());
+    // driveTab.add("Gyro", m_gyro);
+    autoTab.addDouble("Roll", () -> getRoll());
     driveTab.addBoolean("Motors Braked", () -> m_braked);
     // driveTab.addCamera("Webcam", "USB Camera 0"); 
+  }
+
+  public CommandBase arcadeDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
+    return run(() -> m_drive.arcadeDrive(leftPower.getAsDouble(), rightPower.getAsDouble()))
+        .withName("tankDrive");
+  }
+
+  public CommandBase driveDistanceCommand(double distanceMeters, double speed) {
+    return runOnce(
+        () -> resetEncoders())
+        // Drive forward at specified speed
+        .andThen(run(() -> m_drive.arcadeDrive(speed, 0)))
+        // End command when we've traveled the specified distance
+        .until(
+            () -> Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) >= distanceMeters)
+        // Stop the drive when the command ends
+        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
+  }
+
+  public CommandBase driveBackDistanceCommand(double distanceMeters, double speed) {
+    double absSpeed = Math.abs(speed); 
+    return runOnce(
+        () -> resetEncoders())
+        // Drive forward at specified speed
+        .andThen(run(() -> m_drive.arcadeDrive(-absSpeed, 0)))
+        // End command when we've traveled the specified distance
+        .until(
+            () -> Math.min(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) <= -distanceMeters)
+        // Stop the drive when the command ends
+        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
+  }
+
+  public CommandBase driveUntilBalanced(double intialPower, double finalPower) {
+    return runOnce(
+        () -> resetGyro())
+        // Drive forward at specified speed
+        .andThen(
+            run(() -> m_drive.arcadeDrive(intialPower, 0))
+                .until(() -> Math.abs(getRoll()) > AutoConstants.kRollBackDegrees))
+        .andThen(
+            run(() -> m_drive.arcadeDrive(finalPower, 0))
+                .until(() -> Math.abs(getRoll()) < AutoConstants.kBalancedDegrees))
+        // .andThen(driveBackDistanceCommand(0.2, power))
+        .finallyDo(interrupted -> m_drive.arcadeDrive(0, 0));
+  }
+
+  public void resetGyro() {
+    m_gyro.reset();
+  }
+
+  public void brakeMotors() {
+    m_frontLeft.setNeutralMode(NeutralMode.Brake);
+    m_backLeft.setNeutralMode(NeutralMode.Brake);
+    m_frontRight.setNeutralMode(NeutralMode.Brake);
+    m_backRight.setNeutralMode(NeutralMode.Brake);
+    
+    m_braked = true;
+  }
+
+  public CommandBase stopMotorCommand() {
+    return runOnce(() -> m_drive.tankDrive(0, 0));
+  }
+
+
+  public void coastMotors() {
+    m_frontLeft.setNeutralMode(NeutralMode.Coast);
+    m_backLeft.setNeutralMode(NeutralMode.Coast);
+    m_frontRight.setNeutralMode(NeutralMode.Coast);
+    m_backRight.setNeutralMode(NeutralMode.Coast);
+    m_braked = false;
+  }
+
+  public double getRoll() {
+    return m_gyro.getRoll() - DriveConstants.kFlatGyroRoll;
+  }
+
+  @Override
+  public void periodic() {
+    m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
 
   public void resetEncoders() {
@@ -195,79 +276,6 @@ public class Drive extends SubsystemBase {
     return -m_gyro.getRate();
   }
 
-  public CommandBase arcadeDriveCommand(DoubleSupplier leftPower, DoubleSupplier rightPower) {
-    return run(() -> m_drive.arcadeDrive(leftPower.getAsDouble(), rightPower.getAsDouble()))
-        .withName("tankDrive");
-  }
-
-  public CommandBase driveDistanceCommand(double distanceMeters, double speed) {
-    return runOnce(
-        () -> resetEncoders())
-        // Drive forward at specified speed
-        .andThen(run(() -> m_drive.arcadeDrive(speed, 0)))
-        // End command when we've traveled the specified distance
-        .until(
-            () -> Math.max(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) >= distanceMeters)
-        // Stop the drive when the command ends
-        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
-  }
-
-  public CommandBase driveBackDistanceCommand(double distanceMeters, double speed) {
-    return runOnce(
-        () -> resetEncoders())
-        // Drive forward at specified speed
-        .andThen(run(() -> m_drive.arcadeDrive(-speed, 0)))
-        // End command when we've traveled the specified distance
-        .until(
-            () -> Math.min(m_leftEncoder.getDistance(), m_rightEncoder.getDistance()) <= -distanceMeters)
-        // Stop the drive when the command ends
-        .finallyDo(interrupted -> m_drive.tankDrive(0, 0));
-  }
-
-  public CommandBase driveUntilBalanced(double power) {
-    return runOnce(
-        () -> resetGyro())
-        // Drive forward at specified speed
-        .andThen(
-            run(() -> m_drive.arcadeDrive(power, 0))
-                .until(() -> getRoll() > AutoConstants.kRollBackDegrees))
-        .andThen(
-            run(() -> m_drive.arcadeDrive(power, 0))
-                .until(() -> getRoll() < AutoConstants.kBalancedDegrees))
-        .andThen(driveBackDistanceCommand(0.2, power))
-        .finallyDo(interrupted -> m_drive.arcadeDrive(0, 0));
-  }
-
-  public void resetGyro() {
-    m_gyro.reset();
-  }
-
-  public void brakeMotors() {
-    m_frontLeft.setNeutralMode(NeutralMode.Brake);
-    m_backLeft.setNeutralMode(NeutralMode.Brake);
-    m_frontRight.setNeutralMode(NeutralMode.Brake);
-    m_backRight.setNeutralMode(NeutralMode.Brake);
-    
-    m_braked = true;
-  }
-
-  public CommandBase stopMotorCommand() {
-    return runOnce(() -> m_drive.tankDrive(0, 0));
-  }
-
-
-  public void coastMotors() {
-    m_frontLeft.setNeutralMode(NeutralMode.Coast);
-    m_backLeft.setNeutralMode(NeutralMode.Coast);
-    m_frontRight.setNeutralMode(NeutralMode.Coast);
-    m_backRight.setNeutralMode(NeutralMode.Coast);
-    m_braked = false;
-  }
-
-  public double getRoll() {
-    return m_gyro.getRoll() - DriveConstants.kFlatGyroRoll;
-  }
-
   public Command followTrajectoryCommand(PathPlannerTrajectory traj, boolean isFirstPath) {
     return new SequentialCommandGroup(
         new InstantCommand(() -> {
@@ -291,10 +299,5 @@ public class Drive extends SubsystemBase {
         )
         
     );
-  }
-
-  @Override
-  public void periodic() {
-    m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
 }

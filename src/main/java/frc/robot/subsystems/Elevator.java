@@ -31,7 +31,6 @@ public class Elevator extends SubsystemBase {
   TimeOfFlight m_rangefinder = new TimeOfFlight(ElevatorConstants.kElevatorRangefinderId);
   WPI_TalonFX m_liftMotor = new WPI_TalonFX(ElevatorConstants.kElevatorMotorId);
 
-  ElevatorFeedforward feedforward = new ElevatorFeedforward(ElevatorConstants.kS, ElevatorConstants.kG, ElevatorConstants.kV);
   PIDController m_controller = new PIDController(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
 
   boolean enabled = false; 
@@ -42,28 +41,46 @@ public class Elevator extends SubsystemBase {
     m_rangefinder.setRangingMode(RangingMode.Short, 24);
     m_liftMotor.setNeutralMode(NeutralMode.Brake);
     m_controller.setTolerance(10.0);
-    m_controller.setSetpoint(getMeasurement());
-
+    
+    disablePID();
     configureElevatorTab();
+    m_controller.setSetpoint(ElevatorConstants.kLower);
   }
 
   private void configureElevatorTab() {
     ShuffleboardTab tab = Shuffleboard.getTab(ShuffleboardConstants.kElevatorTab); 
     tab.addDouble("Elevator Height", m_rangefinder::getRange)
       .withWidget(BuiltInWidgets.kNumberSlider)
-      .withProperties(Map.of("min", ElevatorConstants.kLowerRange, "max", ElevatorConstants.kUpperRange));
+      .withProperties(Map.of("min", ElevatorConstants.kLower, "max", ElevatorConstants.kUpper));
     tab.add("PID", m_controller);
     tab.addBoolean("At setpoint", m_controller::atSetpoint); 
     
   }
 
+  /**
+   * Moves elevator up all the way   
+   */
+  public Command topCommand() {
+    return run(() -> m_controller.setSetpoint(ElevatorConstants.kUpper))
+      .until(m_controller::atSetpoint); 
+  }
+
+  
+
+  /**
+   * Moves elevator down all the way  
+   */
+  public Command bottomCommand() {
+    return run(() -> m_controller.setSetpoint(ElevatorConstants.kLower))
+      .until(m_controller::atSetpoint);
+  }
+
   public CommandBase liftCommand(DoubleSupplier direction) {
     return run(() -> {
       double power = direction.getAsDouble(); 
-      //targetPosition = MathUtil.clamp(targetPosition + direction.getAsDouble() * 0.1, ElevatorConstants.kLowerRange, ElevatorConstants.kUpperRange);
-      if (m_rangefinder.getRange() < ElevatorConstants.kLowerRange) 
+      if (m_rangefinder.getRange() < ElevatorConstants.kLower) 
         power = Math.max(0, power);
-      else if (m_rangefinder.getRange() > ElevatorConstants.kUpperRange) 
+      else if (m_rangefinder.getRange() > ElevatorConstants.kUpper) 
         power = Math.min(0, power);
       
       m_liftMotor.set(ControlMode.PercentOutput, power);
@@ -71,8 +88,8 @@ public class Elevator extends SubsystemBase {
   }
 
   public CommandBase setSetpointCommand(DoubleSupplier direction) {
-    return runOnce(() -> {
-      double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble() * 5, ElevatorConstants.kLowerRange, ElevatorConstants.kUpperRange);
+    return run(() -> {
+      double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble() * 5, ElevatorConstants.kLower, ElevatorConstants.kUpper);
       m_controller.setSetpoint(newSetpoint);
     }); 
   }
@@ -88,13 +105,10 @@ public class Elevator extends SubsystemBase {
 
   @Override
   public void periodic() {
-    // double output = feedforward.calculate(0.2) + pid.calculate(m_rangefinder.getRange() / 1000, targetPosition);
-    // m_liftMotor.setVoltage(output);
-    output = 0.075 + MathUtil.clamp(m_controller.calculate(getMeasurement()), ElevatorConstants.kMinPower, ElevatorConstants.kMaxPower); 
-    if (enabled == true)
+    if (enabled)
+      output = ElevatorConstants.kElevatorFeedforward 
+        + MathUtil.clamp(m_controller.calculate(getMeasurement()), ElevatorConstants.kMinPower, ElevatorConstants.kMaxPower); 
       m_liftMotor.set(ControlMode.PercentOutput, output); 
-
-
   }
 
   private double getMeasurement() {

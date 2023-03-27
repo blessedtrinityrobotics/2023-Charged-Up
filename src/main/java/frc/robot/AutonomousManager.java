@@ -34,6 +34,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.RamseteCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SelectCommand;
@@ -43,6 +44,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
+import frc.robot.Constants.ShuffleboardConstants;
 import frc.robot.subsystems.Arm;
 import frc.robot.subsystems.Drive;
 import frc.robot.subsystems.Elevator;
@@ -72,7 +74,12 @@ public class AutonomousManager {
     private void configureAutoChooser() {
         m_chooser.setDefaultOption("Drive", driveForwardAuto());
         m_chooser.addOption("Balance", driveAndBalanceAuto());
-        m_chooser.addOption("Drop Low & Balance", dropAndBalanceAuto());
+        m_chooser.addOption("Put High", putHighAuto());
+        m_chooser.addOption("Put High & Drive", putHighAndDriveAuto());
+        m_chooser.addOption("Put High & Balance", putHighAndBalanceAuto());
+        m_chooser.addOption("High, Drive & Balance", putHighDriveAndBalanceAuto());
+
+        Shuffleboard.getTab(ShuffleboardConstants.kDriveTab).add("Choose Auto", m_chooser).withSize(2, 1);
     }
 
     public Command getChosenAuto() {
@@ -96,62 +103,55 @@ public class AutonomousManager {
         );
     }
 
-    public Command dropAndBalanceAuto() {
+    public Command putHighAuto() {
         return new SequentialCommandGroup(
-                new InstantCommand(m_drive::brakeMotors, m_drive),
-                m_drive.driveBackDistanceCommand(0.2, 0.5),
-                m_drive.driveDistanceCommand(0.1, 0.5),
-                m_intake.pushOutCommand().withTimeout(1),
-                m_intake.stopIntake().withTimeout(1),
-				m_drive.driveUntilBalanced(-0.4));
+            new ParallelCommandGroup(
+                m_arm.runOnce(m_arm::enablePID).andThen(m_arm.setHighCommand()),
+                m_elevator.runOnce(m_elevator::enablePID).andThen(m_elevator.topCommand()),
+                m_intake.pullInCommand()),
+            new WaitCommand(2.5), 
+            m_intake.stopIntakeCommand(),
+            m_intake.pushOutCommand(),
+            new WaitCommand(0.3),
+            m_intake.stopIntakeCommand(),
+            m_arm.setRetractedCommand(),
+            new WaitCommand(0.25),
+            m_elevator.bottomCommand()
+        ); 
+    }
+
+    public Command putHighAndDriveAuto() {
+        return new SequentialCommandGroup(
+            putHighAuto(),
+            m_drive.driveBackDistanceCommand(3, 0.6)
+                .withTimeout(5),
+            m_drive.stopMotorCommand()
+        );
+    }
+
+    public Command putHighAndBalanceAuto() {
+        return new SequentialCommandGroup(
+            putHighAuto(),
+            driveAndBalanceAuto()
+        ); 
+    }
+
+    public Command putHighDriveAndBalanceAuto() {
+        return new SequentialCommandGroup(
+            putHighAuto(),
+            m_drive.driveBackDistanceCommand(3.3, 0.55)
+                .withTimeout(4),
+            m_drive.stopMotorCommand(),
+            new WaitCommand(0.5),
+            m_drive.driveUntilBalanced(0.625, 0.4),
+            m_drive.driveBackDistanceCommand(0.12, 0.4)
+        );
     }
 
     public Command driveAndBalanceAuto() {
         return new SequentialCommandGroup(
-                new InstantCommand(m_drive::brakeMotors, m_drive),
-                m_drive.driveUntilBalanced(0.4));
-    }
-
-    public Command dropAndDriveBackAuto() {
-        return new SequentialCommandGroup(
-                new InstantCommand(m_drive::brakeMotors, m_drive),
-                m_drive.driveBackDistanceCommand(0.2, 0.5),
-                m_drive.driveDistanceCommand(0.1, 0.5),
-                m_intake.pushOutCommand().withTimeout(1),
-                m_intake.stopIntake().withTimeout(1),
-                // generateRamseteCommand(backTrajectory).withTimeout(3),// change to other
-                m_drive.driveBackDistanceCommand(3, 0.4),
-                m_drive.stopMotorCommand());
-    }
-
-    private RamseteCommand generateRamseteCommand(Trajectory trajectory) {
-        return new RamseteCommand(
-                trajectory,
-                m_drive::getPose,
-                new RamseteController(AutoConstants.kRamseteB, AutoConstants.kRamseteZeta),
-                new SimpleMotorFeedforward(
-                        DriveConstants.ksVolts,
-                        DriveConstants.kvVoltSecondsPerMeter,
-                        DriveConstants.kaVoltSecondsSquaredPerMeter),
-                DriveConstants.kDriveKinematics,
-                m_drive::getWheelSpeeds,
-                new PIDController(DriveConstants.kPDriveVel, 0, 0),
-                new PIDController(DriveConstants.kPDriveVel, 0, 0),
-                m_drive::tankDriveVolts,
-                m_drive);
-    }
-
-    private Trajectory getTrajectory(String traj) {
-        String trajectoryJSON = traj;
-        Trajectory trajectory = new Trajectory();
-
-        try {
-            Path trajectoryPath = Filesystem.getDeployDirectory().toPath().resolve(trajectoryJSON);
-            trajectory = TrajectoryUtil.fromPathweaverJson(trajectoryPath);
-        } catch (IOException ex) {
-            DriverStation.reportError("Unable to open trajectory: " + trajectoryJSON, ex.getStackTrace());
-        }
-
-        return trajectory;
+                m_drive.driveUntilBalanced(-0.7, -0.4),
+                m_drive.driveDistanceCommand(0.12, 0.4)
+        );
     }
 }

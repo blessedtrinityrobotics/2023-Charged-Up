@@ -4,43 +4,21 @@
 
 package frc.robot;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
+import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.UsbCamera;
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.RamseteController;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.trajectory.Trajectory;
-import edu.wpi.first.math.trajectory.TrajectoryConfig;
-import edu.wpi.first.math.trajectory.TrajectoryGenerator;
-import edu.wpi.first.math.trajectory.TrajectoryUtil;
-import edu.wpi.first.math.trajectory.constraint.DifferentialDriveVoltageConstraint;
-import edu.wpi.first.networktables.GenericEntry;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.RamseteCommand;
-import edu.wpi.first.wpilibj2.command.RunCommand;
-import edu.wpi.first.wpilibj2.command.SelectCommand;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import frc.robot.Constants.AutoConstants;
-import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
+import frc.robot.Constants.ShuffleboardConstants;
 import frc.robot.subsystems.Arm;
-import frc.robot.subsystems.ArmStupid;
 import frc.robot.subsystems.Drive;
 import frc.robot.subsystems.Elevator;
 import frc.robot.subsystems.Intake;
@@ -49,64 +27,77 @@ public class RobotContainer {
   private final Drive m_drive = new Drive();
   private final Elevator m_elevator = new Elevator();
   private final Arm m_arm = new Arm();
-  // private final ArmStupid m_armStupid = new ArmStupid();
   private final Intake m_intake = new Intake();
 
-  CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerId);
-  CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerId);
-
+  private final CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerId);
+  private final CommandXboxController m_operatorController = new CommandXboxController(OIConstants.kOperatorControllerId);
+  
   private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake);
 
+  ShuffleboardTab m_driveTab; 
+  DoubleSupplier m_armPIDInputFunc = () -> -InputUtil.applyDeadzone(m_operatorController.getRightY()) * OIConstants.kArmSetpointForcefulness; 
+
   public RobotContainer() {
-    CameraServer.startAutomaticCapture();
+    UsbCamera cam = CameraServer.startAutomaticCapture();
+    configureDriveTab(cam);
     configureBindings();
   }
 
-  private double trimDriveInput(double joystickInput) {
-    // Make the lower bound of the stick
-    double inputSign = Math.signum(joystickInput);
-    double interpolatedInput = MathUtil.interpolate(OIConstants.kBaselinePower, OIConstants.kMaxPower,
-        Math.abs(joystickInput));
-    return Math.pow(interpolatedInput, 2) * inputSign;
+  private void configureDriveTab(UsbCamera cam) {
+    m_driveTab = Shuffleboard.getTab(ShuffleboardConstants.kDriveTab);
+    m_driveTab.add("Cam", cam).withSize(4, 3);
   }
 
-  private double applyDeadzone(double input, double deadzone) {
-    if (Math.abs(input) < deadzone)
-      return 0;
-    else
-      return input;
-  }
-
+  /**
+   * Used to setup controller bindings for the driver and the operator 
+   */
   private void configureBindings() {
     m_drive.setDefaultCommand(
         m_drive.arcadeDriveCommand(
-            () -> -trimDriveInput(m_driverController.getLeftY()),
-            () -> trimDriveInput(m_driverController.getRightX())));
+            () -> InputUtil.trimDriveInput(m_driverController.getRightTriggerAxis() - m_driverController.getLeftTriggerAxis()),
+            () -> -InputUtil.trimDriveInput(m_driverController.getLeftX())));
 
-    // m_elevator.setDefaultCommand(m_elevator.liftCommand(() -> -m_operatorController.getLeftY()));
-    // m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> -m_operatorController.getRightY()));
-    m_arm.setDefaultCommand(m_arm.setSetpointCommand(() -> -applyDeadzone(m_operatorController.getRightY(), 0.1)));
-    m_elevator.setDefaultCommand(m_elevator.setSetpointCommand(() -> -applyDeadzone(m_operatorController.getLeftY(), 0.1)));
+    m_arm.setDefaultCommand(m_arm.setSetpointCommand(m_armPIDInputFunc));
+    m_elevator.setDefaultCommand(m_elevator.setSetpointCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getLeftY())));
 
+    // Driver intake commands 
+    m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
+    m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
 
-    m_operatorController.y().onTrue(m_arm.runOnce(() -> m_arm.enablePID()));
-    m_operatorController.x().onTrue(m_arm.runOnce(() -> m_arm.disablePID()));
-    m_operatorController.a().onTrue(m_elevator.runOnce(() -> m_elevator.enablePID()));
-    m_operatorController.b().onTrue(m_elevator.runOnce(() -> m_elevator.disablePID())); 
+    // Arm and Elevator PID Control (it starts by default off )
+    m_operatorController.y().onTrue(m_arm.runOnce(m_arm::enablePID));
+    m_operatorController.x().onTrue(m_arm.runOnce(m_arm::disablePID));
+    m_operatorController.a().onTrue(m_elevator.runOnce(m_elevator::enablePID));
+    m_operatorController.b().onTrue(m_elevator.runOnce(m_elevator::disablePID)); 
 
-    m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
-    m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake());
-    m_operatorController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntake());
-    m_operatorController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntake());
+    m_operatorController.leftTrigger().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
+    m_operatorController.rightTrigger().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
 
-    m_driverController.a().onTrue(new InstantCommand(m_drive::coastMotors, m_drive));
-    m_driverController.b().onTrue(new InstantCommand(m_drive::brakeMotors, m_drive));
+    // Back turns manual override on, start turns it off 
+    m_operatorController.back().onTrue(manualArmControlCommand());  
+    m_operatorController.start().onTrue(autoArmControlCommand());  
 
-    // m_operatorController.a().onTrue(new InstantCommand(m_drive::coastMotors,
-    // m_drive));
-    // m_operatorController.b().onTrue(new InstantCommand(m_drive::brakeMotors,
-    // m_drive));
+    // Preset positions for elevator and arm, controlled by the operator 
+    m_operatorController.leftBumper().onTrue(m_arm.setRetractedCommand().alongWith(m_elevator.bottomCommand()));
+    m_operatorController.rightBumper().onTrue(m_arm.setHorizontalCommand().alongWith(m_elevator.bottomCommand())); 
+    m_operatorController.povUp().onTrue(m_arm.setHighCommand().alongWith(m_elevator.topCommand()));
+    m_operatorController.povRight().onTrue(m_arm.setHorizontalCommand().alongWith(m_elevator.bottomCommand())); 
+    
 
+  }
+
+  public CommandBase manualArmControlCommand() {
+    return m_arm.runOnce(() -> {
+      m_arm.enableOverride();
+      m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getRightY())));
+    }); 
+  }
+
+  public CommandBase autoArmControlCommand() {
+    return m_arm.runOnce(() -> {
+      m_arm.disableOverride();
+      m_arm.setDefaultCommand(m_arm.setSetpointCommand(m_armPIDInputFunc));
+    }); 
   }
 
   public Command getAutonomousCommand() {
