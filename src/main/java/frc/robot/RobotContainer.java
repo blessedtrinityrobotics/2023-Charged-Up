@@ -8,13 +8,10 @@ import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OIConstants;
 import frc.robot.Constants.ShuffleboardConstants;
@@ -35,7 +32,7 @@ public class RobotContainer {
   private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake);
 
   ShuffleboardTab m_driveTab; 
-  DoubleSupplier m_armPIDInputFunc = () -> -InputUtil.applyDeadzone(m_operatorController.getRightY()) * OIConstants.kArmSetpointForcefulness; 
+  DoubleSupplier m_armPIDInputFunc = () -> -InputUtil.applyDeadzone(m_operatorController.getRightY()) * OIConstants.kArmSensitivity; 
 
   public RobotContainer() {
     UsbCamera cam = CameraServer.startAutomaticCapture();
@@ -54,38 +51,44 @@ public class RobotContainer {
   private void configureBindings() {
     m_drive.setDefaultCommand(
         m_drive.arcadeDriveCommand(
-            () -> InputUtil.trimDriveInput(m_driverController.getRightTriggerAxis() - m_driverController.getLeftTriggerAxis()),
+            () -> m_driverController.getRightTriggerAxis() - m_driverController.getLeftTriggerAxis(),
             () -> -InputUtil.trimDriveInput(m_driverController.getLeftX())));
 
     m_arm.setDefaultCommand(m_arm.setSetpointCommand(m_armPIDInputFunc));
-    m_elevator.setDefaultCommand(m_elevator.setSetpointCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getLeftY())));
+    m_elevator.setDefaultCommand(m_elevator.setGoalCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getLeftY()) * OIConstants.kElevatorSensitivity));
 
-    // Driver intake commands 
-    m_driverController.leftBumper().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
-    m_driverController.rightBumper().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
-
-    // Arm and Elevator PID Control (it starts by default off )
-    m_operatorController.y().onTrue(m_arm.runOnce(m_arm::enablePID));
-    m_operatorController.x().onTrue(m_arm.runOnce(m_arm::disablePID));
-    m_operatorController.a().onTrue(m_elevator.runOnce(m_elevator::enablePID));
-    m_operatorController.b().onTrue(m_elevator.runOnce(m_elevator::disablePID)); 
-
+    // Driver and Operator intake and outtake  
+    m_driverController.x().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
+    m_driverController.a().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
+    // Note how operator uses the triggers while driver uses x and a 
     m_operatorController.leftTrigger().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
     m_operatorController.rightTrigger().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
 
-    // Back turns manual override on, start turns it off 
-    m_operatorController.back().onTrue(manualArmControlCommand());  
-    m_operatorController.start().onTrue(autoArmControlCommand());  
+    // Brake toggles for both driver and the operator 
+    m_driverController.b().onTrue(m_drive.runOnce(m_drive::brakeMotors));
+    m_driverController.y().onTrue(m_drive.runOnce(m_drive::coastMotors)); 
+
+    m_operatorController.b().onTrue(m_drive.runOnce(m_drive::brakeMotors));
+    m_operatorController.y().onTrue(m_drive.runOnce(m_drive::coastMotors)); 
+
+    // Arm/Elevator PID Control (it starts by default off )
+    m_operatorController.a().onTrue(m_arm.runOnce(m_arm::enablePID).alongWith(m_elevator.runOnce(m_elevator::enablePID))); 
+    m_operatorController.x().onTrue(m_arm.runOnce(m_arm::disablePID).alongWith(m_elevator.runOnce(m_elevator::disablePID))); 
+
+    // Operator Manual Override toggle  
+    m_operatorController.back().onTrue(manualArmControlCommand()); // Manual ON 
+    m_operatorController.start().onTrue(autoArmControlCommand());  // Manual OFF
 
     // Preset positions for elevator and arm, controlled by the operator 
-    m_operatorController.leftBumper().onTrue(m_arm.setRetractedCommand().alongWith(m_elevator.bottomCommand()));
-    m_operatorController.rightBumper().onTrue(m_arm.setHorizontalCommand().alongWith(m_elevator.bottomCommand())); 
-    m_operatorController.povUp().onTrue(m_arm.setHighCommand().alongWith(m_elevator.topCommand()));
-    m_operatorController.povRight().onTrue(m_arm.setHorizontalCommand().alongWith(m_elevator.bottomCommand())); 
-    
-
+    m_operatorController.leftBumper().onTrue(m_arm.retractedCommand().alongWith(m_elevator.bottomCommand())); // Retracted away
+    m_operatorController.rightBumper().onTrue(m_arm.horizontalCommand().alongWith(m_elevator.bottomCommand())); // Ready for pickup 
+    m_operatorController.povUp().onTrue(m_arm.highCubeCommand().alongWith(m_elevator.topCommand())); // High Cube
+    m_operatorController.povRight().onTrue(m_arm.highCubeCommand().alongWith(m_elevator.midCubeCommand())); // Mid Cube
   }
 
+  /**
+   * Make arm manually controlled
+   */
   public CommandBase manualArmControlCommand() {
     return m_arm.runOnce(() -> {
       m_arm.enableOverride();
@@ -93,6 +96,9 @@ public class RobotContainer {
     }); 
   }
 
+  /*
+   * Go back to manual PID control 
+   */
   public CommandBase autoArmControlCommand() {
     return m_arm.runOnce(() -> {
       m_arm.disableOverride();

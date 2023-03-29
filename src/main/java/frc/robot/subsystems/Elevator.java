@@ -14,13 +14,11 @@ import com.playingwithfusion.TimeOfFlight;
 import com.playingwithfusion.TimeOfFlight.RangingMode;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ElevatorFeedforward;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.wpilibj.interfaces.Accelerometer.Range;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -31,7 +29,9 @@ public class Elevator extends SubsystemBase {
   TimeOfFlight m_rangefinder = new TimeOfFlight(ElevatorConstants.kElevatorRangefinderId);
   WPI_TalonFX m_liftMotor = new WPI_TalonFX(ElevatorConstants.kElevatorMotorId);
 
-  PIDController m_controller = new PIDController(ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD);
+  ProfiledPIDController m_controller = new ProfiledPIDController(
+    ElevatorConstants.kP, ElevatorConstants.kI, ElevatorConstants.kD,
+    new TrapezoidProfile.Constraints(ElevatorConstants.kMaxVelocityMetersPerSecond, ElevatorConstants.kMaxAccelerationMetersPerSecondSquared) );
 
   boolean enabled = false; 
   double output = 0; 
@@ -40,38 +40,40 @@ public class Elevator extends SubsystemBase {
   public Elevator() {
     m_rangefinder.setRangingMode(RangingMode.Short, 24);
     m_liftMotor.setNeutralMode(NeutralMode.Brake);
-    m_controller.setTolerance(10.0);
+    m_controller.setTolerance(ElevatorConstants.kErrorTolerance);
     
     disablePID();
     configureElevatorTab();
-    m_controller.setSetpoint(ElevatorConstants.kLower);
+    m_controller.setGoal(ElevatorConstants.kLower);
   }
 
   private void configureElevatorTab() {
     ShuffleboardTab tab = Shuffleboard.getTab(ShuffleboardConstants.kElevatorTab); 
-    tab.addDouble("Elevator Height", m_rangefinder::getRange)
-      .withWidget(BuiltInWidgets.kNumberSlider)
+    tab.addDouble("Elevator Height", this::getMeasurement)
+      .withWidget(BuiltInWidgets.kNumberBar)
       .withProperties(Map.of("min", ElevatorConstants.kLower, "max", ElevatorConstants.kUpper));
-    tab.add("PID", m_controller);
+    tab.add("PID", m_controller).withSize(1, 2);
     tab.addBoolean("At setpoint", m_controller::atSetpoint); 
-    
   }
 
   /**
    * Moves elevator up all the way   
    */
   public Command topCommand() {
-    return run(() -> m_controller.setSetpoint(ElevatorConstants.kUpper))
+    return run(() -> m_controller.setGoal(ElevatorConstants.kUpper))
       .until(m_controller::atSetpoint); 
   }
 
-  
+  public Command midCubeCommand() {
+    return run(() -> m_controller.setGoal(ElevatorConstants.kMidCubePos))
+      .until(m_controller::atSetpoint); 
+  }
 
   /**
    * Moves elevator down all the way  
    */
   public Command bottomCommand() {
-    return run(() -> m_controller.setSetpoint(ElevatorConstants.kLower))
+    return run(() -> m_controller.setGoal(ElevatorConstants.kLower))
       .until(m_controller::atSetpoint);
   }
 
@@ -87,14 +89,16 @@ public class Elevator extends SubsystemBase {
     });
   }
 
-  public CommandBase setSetpointCommand(DoubleSupplier direction) {
+  public CommandBase setGoalCommand(DoubleSupplier direction) {
     return run(() -> {
-      double newSetpoint = MathUtil.clamp(m_controller.getSetpoint() + direction.getAsDouble() * 5, ElevatorConstants.kLower, ElevatorConstants.kUpper);
-      m_controller.setSetpoint(newSetpoint);
+      double newSetpoint = MathUtil.clamp(m_controller.getGoal().position + direction.getAsDouble(), 
+      ElevatorConstants.kLower, ElevatorConstants.kUpper);
+      m_controller.setGoal(newSetpoint);
     }); 
   }
 
   public void enablePID() {
+    m_controller.reset(getMeasurement());
     enabled = true;
   }
   
@@ -112,6 +116,6 @@ public class Elevator extends SubsystemBase {
   }
 
   private double getMeasurement() {
-    return m_rangefinder.getRange();
+    return m_rangefinder.getRange() * 0.001;
   }
 }

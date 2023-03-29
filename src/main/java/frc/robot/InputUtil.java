@@ -7,8 +7,12 @@ package frc.robot;
 import edu.wpi.first.math.MathUtil;
 import frc.robot.Constants.OIConstants;
 
-/** Add your docs here. */
 public class InputUtil {
+
+    /** 
+     * @param joystickInput the joystick input
+     * @return trimmed input 
+     */
     public static double trimDriveInput(double joystickInput) {
         double zonedInput = applyDeadzone(joystickInput);
         // Make the lower bound of the stick
@@ -18,6 +22,10 @@ public class InputUtil {
         return Math.pow(interpolatedInput, OIConstants.kDegreeSmoothing) * inputSign;
     }
 
+    /**
+     * If you're below the deadzone threshold, no input is returned
+     * otherwise, its just the input 
+     */
     public static double applyDeadzone(double input) {
         return (Math.abs(input) < OIConstants.kJoystickDeadzone) ? 0 : input;
     }

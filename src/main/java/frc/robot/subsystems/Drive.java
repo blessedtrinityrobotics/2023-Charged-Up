@@ -4,7 +4,6 @@
 
 package frc.robot.subsystems;
 
-import java.util.Map;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix.motorcontrol.NeutralMode;
@@ -23,11 +22,9 @@ import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
-import edu.wpi.first.wpilibj.shuffleboard.BuiltInWidgets;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
@@ -131,7 +128,6 @@ public class Drive extends SubsystemBase {
         .andThen(
             run(() -> m_drive.arcadeDrive(finalPower, 0))
                 .until(() -> Math.abs(getRoll()) < AutoConstants.kBalancedDegrees))
-        // .andThen(driveBackDistanceCommand(0.2, power))
         .finallyDo(interrupted -> m_drive.arcadeDrive(0, 0));
   }
 
@@ -147,11 +143,6 @@ public class Drive extends SubsystemBase {
     
     m_braked = true;
   }
-
-  public CommandBase stopMotorCommand() {
-    return runOnce(() -> m_drive.tankDrive(0, 0));
-  }
-
 
   public void coastMotors() {
     m_frontLeft.setNeutralMode(NeutralMode.Coast);
@@ -169,6 +160,10 @@ public class Drive extends SubsystemBase {
   public void periodic() {
     m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getDistance(), m_rightEncoder.getDistance());
   }
+
+// ===================================================================================================
+// PROBABLY DON'T NEED TO TOUCH METHODS BELOW THIS LINE... MOST ARE PREGENERATED
+// ===================================================================================================
 
   public void resetEncoders() {
     m_leftEncoder.reset();

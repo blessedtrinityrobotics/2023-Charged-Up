@@ -10,11 +10,8 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
-import edu.wpi.first.networktables.DoubleEntry;
-import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -32,6 +29,8 @@ public class Intake extends SubsystemBase {
   public Intake() {
     m_intakeLeft.setNeutralMode(NeutralMode.Brake);
     m_intakeRight.setNeutralMode(NeutralMode.Brake);
+    m_intakeLeft.setInverted(true);
+    m_intakeRight.setInverted(true);
 
     configureIntakeTab();
   }
