@@ -46,6 +46,7 @@ public class Arm extends SubsystemBase {
     configureArmTab();
     disablePID();    
 
+    m_controller.setTolerance(ArmConstants.kErrorTolerance);
     m_controller.setGoal(ArmConstants.kUpper);
   }
 
@@ -74,10 +75,18 @@ public class Arm extends SubsystemBase {
     ShuffleboardLayout pidStuff = armTab.getLayout("Extra PID Info", BuiltInLayouts.kList).withSize(2, 3);
 
     pidStuff.addDouble("Error", m_controller::getPositionError);
-    pidStuff.addBoolean("At setpoint", m_controller::atSetpoint);
+    pidStuff.addBoolean("At setpoint", this::actuallyAtGoal);
     pidStuff.addDouble("PID Output", () -> output); 
     pidStuff.addDouble("Arm power", m_motor::get);
 
+  }
+
+  /**
+   * Created because the m_controller.atGoal() method doesn't seem to work
+   * Super easy to implement, and this does the trick!
+   */
+  private boolean actuallyAtGoal() {
+    return Math.abs(m_controller.getPositionError()) < ArmConstants.kErrorTolerance; 
   }
 
   public double getMeasurement() {
@@ -128,16 +137,33 @@ public class Arm extends SubsystemBase {
   }
 
   public Command retractedCommand() {
-    return runOnce(() -> m_controller.setGoal(ArmConstants.kUpper)); 
+    return runOnce(() -> m_controller.setGoal(ArmConstants.kUpper))
+      .until(this::actuallyAtGoal); 
   }
 
   public Command highCubeCommand() {
     return run(() -> m_controller.setGoal(ArmConstants.kHighPosition))
-      .until(m_controller::atSetpoint); 
+      .until(this::actuallyAtGoal); 
+  }
+
+  public Command humanStationCommand() {
+    return run(() -> m_controller.setGoal(ArmConstants.kHumanPosition))
+      .until(this::actuallyAtGoal);  
+  }
+
+  public Command midConeCommand() {
+    return run(() -> m_controller.setGoal(ArmConstants.kMidConePosition))
+      .until(this::actuallyAtGoal); 
   }
 
   public Command horizontalCommand() {
-    return runOnce(() -> m_controller.setGoal(ArmConstants.kLower)); 
+    return runOnce(() -> m_controller.setGoal(ArmConstants.kLower))
+      .until(this::actuallyAtGoal); 
+  }
+
+  public Command midCubeCommand() {
+    return runOnce(() -> m_controller.setGoal(ArmConstants.kMidCubePosition))
+      .until(this::actuallyAtGoal);
   }
 
   /**

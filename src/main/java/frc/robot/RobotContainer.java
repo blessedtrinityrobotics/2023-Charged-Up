@@ -32,7 +32,7 @@ public class RobotContainer {
   private final AutonomousManager m_autoManager = new AutonomousManager(m_drive, m_elevator, m_arm, m_intake);
 
   ShuffleboardTab m_driveTab; 
-  DoubleSupplier m_armPIDInputFunc = () -> -InputUtil.applyDeadzone(m_operatorController.getRightY()) * OIConstants.kArmSensitivity; 
+  DoubleSupplier m_armPIDInputFunc = () -> -Utils.applyDeadzone(m_operatorController.getRightY()) * OIConstants.kArmSensitivity; 
 
   public RobotContainer() {
     UsbCamera cam = CameraServer.startAutomaticCapture();
@@ -52,10 +52,10 @@ public class RobotContainer {
     m_drive.setDefaultCommand(
         m_drive.arcadeDriveCommand(
             () -> m_driverController.getRightTriggerAxis() - m_driverController.getLeftTriggerAxis(),
-            () -> -InputUtil.trimDriveInput(m_driverController.getLeftX())));
+            () -> -Utils.trimDriveInput(m_driverController.getLeftX())));
 
     m_arm.setDefaultCommand(m_arm.setSetpointCommand(m_armPIDInputFunc));
-    m_elevator.setDefaultCommand(m_elevator.setGoalCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getLeftY()) * OIConstants.kElevatorSensitivity));
+    m_elevator.setDefaultCommand(m_elevator.setGoalCommand(() -> -Utils.applyDeadzone(m_operatorController.getLeftY()) * OIConstants.kElevatorSensitivity));
 
     // Driver and Operator intake and outtake  
     m_driverController.x().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
@@ -63,15 +63,14 @@ public class RobotContainer {
     // Note how operator uses the triggers while driver uses x and a 
     m_operatorController.leftTrigger().onTrue(m_intake.pushOutCommand()).onFalse(m_intake.stopIntakeCommand());
     m_operatorController.rightTrigger().onTrue(m_intake.pullInCommand()).onFalse(m_intake.stopIntakeCommand());
+    m_operatorController.y().onTrue(m_intake.holdInCommand()).onFalse(m_intake.stopIntakeCommand()); 
+    m_operatorController.b().onTrue(m_intake.slowOutCommand()).onFalse(m_intake.stopIntakeCommand()); 
 
-    // Brake toggles for both driver and the operator 
+    // Brake toggles  
     m_driverController.b().onTrue(m_drive.runOnce(m_drive::brakeMotors));
     m_driverController.y().onTrue(m_drive.runOnce(m_drive::coastMotors)); 
 
-    m_operatorController.b().onTrue(m_drive.runOnce(m_drive::brakeMotors));
-    m_operatorController.y().onTrue(m_drive.runOnce(m_drive::coastMotors)); 
-
-    // Arm/Elevator PID Control (it starts by default off )
+    // Arm/Elevator PID Control (it starts by default off 
     m_operatorController.a().onTrue(m_arm.runOnce(m_arm::enablePID).alongWith(m_elevator.runOnce(m_elevator::enablePID))); 
     m_operatorController.x().onTrue(m_arm.runOnce(m_arm::disablePID).alongWith(m_elevator.runOnce(m_elevator::disablePID))); 
 
@@ -84,6 +83,8 @@ public class RobotContainer {
     m_operatorController.rightBumper().onTrue(m_arm.horizontalCommand().alongWith(m_elevator.bottomCommand())); // Ready for pickup 
     m_operatorController.povUp().onTrue(m_arm.highCubeCommand().alongWith(m_elevator.topCommand())); // High Cube
     m_operatorController.povRight().onTrue(m_arm.highCubeCommand().alongWith(m_elevator.midCubeCommand())); // Mid Cube
+    m_operatorController.povLeft().onTrue(m_arm.midConeCommand().alongWith(m_elevator.midConeCommand())); 
+    m_operatorController.povDown().onTrue(m_arm.humanStationCommand().alongWith(m_elevator.topCommand()));
   }
 
   /**
@@ -92,7 +93,7 @@ public class RobotContainer {
   public CommandBase manualArmControlCommand() {
     return m_arm.runOnce(() -> {
       m_arm.enableOverride();
-      m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> -InputUtil.applyDeadzone(m_operatorController.getRightY())));
+      m_arm.setDefaultCommand(m_arm.moveArmCommand(() -> -Utils.applyDeadzone(m_operatorController.getRightY())));
     }); 
   }
 

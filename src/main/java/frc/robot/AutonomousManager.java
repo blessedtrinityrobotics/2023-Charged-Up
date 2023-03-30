@@ -65,15 +65,15 @@ public class AutonomousManager {
 
     public Command putHighAuto() {
         return new SequentialCommandGroup(
-            new ParallelCommandGroup(
-                m_arm.runOnce(m_arm::enablePID).andThen(m_arm.highCubeCommand()),
-                m_elevator.runOnce(m_elevator::enablePID).andThen(m_elevator.topCommand()),
-                m_intake.pullInCommand()),
+            m_intake.pullInCommand(),
+            m_arm.runOnce(m_arm::enablePID),
+            m_elevator.runOnce(m_elevator::enablePID),
+            m_arm.highCubeCommand().alongWith(m_elevator.topCommand()),
+            new WaitCommand(2),
             m_intake.pushOutCommand(),
             new WaitCommand(0.3),
             m_intake.stopIntakeCommand(),
             m_arm.retractedCommand(),
-            new WaitCommand(0.25),
             m_elevator.bottomCommand()
         ); 
     }

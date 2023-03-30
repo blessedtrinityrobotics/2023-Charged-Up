@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandBase;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.ArmConstants;
 import frc.robot.Constants.ElevatorConstants;
 import frc.robot.Constants.ShuffleboardConstants;
 
@@ -53,7 +54,15 @@ public class Elevator extends SubsystemBase {
       .withWidget(BuiltInWidgets.kNumberBar)
       .withProperties(Map.of("min", ElevatorConstants.kLower, "max", ElevatorConstants.kUpper));
     tab.add("PID", m_controller).withSize(1, 2);
-    tab.addBoolean("At setpoint", m_controller::atSetpoint); 
+    tab.addBoolean("At setpoint", this::actuallyAtGoal); 
+  }
+
+  /**
+   * Created because the m_controller.atGoal() method doesn't seem to work
+   * Super easy to implement, and this does the trick!
+   */
+  private boolean actuallyAtGoal() {
+    return Math.abs(m_controller.getPositionError()) < ElevatorConstants.kErrorTolerance; 
   }
 
   /**
@@ -61,12 +70,17 @@ public class Elevator extends SubsystemBase {
    */
   public Command topCommand() {
     return run(() -> m_controller.setGoal(ElevatorConstants.kUpper))
-      .until(m_controller::atSetpoint); 
+      .until(this::actuallyAtGoal); 
   }
 
   public Command midCubeCommand() {
     return run(() -> m_controller.setGoal(ElevatorConstants.kMidCubePos))
-      .until(m_controller::atSetpoint); 
+      .until(this::actuallyAtGoal); 
+  }
+
+  public Command midConeCommand() {
+    return run(() -> m_controller.setGoal(ElevatorConstants.kMidConePos))
+    .until(this::actuallyAtGoal); 
   }
 
   /**
@@ -74,7 +88,7 @@ public class Elevator extends SubsystemBase {
    */
   public Command bottomCommand() {
     return run(() -> m_controller.setGoal(ElevatorConstants.kLower))
-      .until(m_controller::atSetpoint);
+      .until(this::actuallyAtGoal);
   }
 
   public CommandBase liftCommand(DoubleSupplier direction) {

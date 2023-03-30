@@ -7,7 +7,7 @@ package frc.robot;
 import edu.wpi.first.math.MathUtil;
 import frc.robot.Constants.OIConstants;
 
-public class InputUtil {
+public class Utils {
 
     /** 
      * @param joystickInput the joystick input
@@ -29,4 +29,8 @@ public class InputUtil {
     public static double applyDeadzone(double input) {
         return (Math.abs(input) < OIConstants.kJoystickDeadzone) ? 0 : input;
     }
+
+    // public static double atGoal(double error, double tolerance) {
+        
+    // }
 }

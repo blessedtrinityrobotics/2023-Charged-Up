@@ -47,10 +47,10 @@ public final class Constants {
     public static final class OIConstants {
         public static final int kDriverControllerId = 0;
         public static final int kOperatorControllerId = 1;
-        public static final double kJoystickDeadzone = 0.05; 
+        public static final double kJoystickDeadzone = 0.1; 
         public static final int kDegreeSmoothing = 2; // what the joystick input is raised to 
         public static final double kArmSensitivity = 0.01; // how reactive the setpoint is 
-        public static final double kElevatorSensitivity = 0.01; // how reactive the setpoint changes are 
+        public static final double kElevatorSensitivity = 0.007; // how reactive the setpoint changes are 
 
         public static final double kBaselinePower = 0.3; // where motors should start at in Teleop
         public static final double kMaxPower = 1.0; // max power that can be given to motors in teleop 
@@ -61,16 +61,20 @@ public final class Constants {
         public static final int kArmMotorId = 1;
         public static final int kIntakeLeftId = 11;
         public static final int kIntakeRightId = 10; 
+        public static final double kErrorTolerance = 0.02;
         public static final double kUpper = Math.PI / 2.1; 
+        public static final double kHumanPosition = Math.toRadians(22.0); 
         public static final double kLower = 0; 
-        public static final double kHighPosition = Math.PI / 4; // make sure this is between lower and upper 
+        public static final double kHighPosition = Math.toRadians(35); // make sure this is between lower and upper 
+        public static final double kMidCubePosition = Math.toRadians(27.0); 
+        public static final double kMidConePosition = Math.toRadians(45.0); 
         public static final double kDefaultEncoderOffset = 0; 
         public static final String kEncoderOffsetKey = "EncoderOffset"; 
         public static final double kEncoderDistancePerRotation = 6.28;  
         public static final double kMaxPower = 1.0;
         public static final double kMinPower = -0.5;
 
-        public static final double kP = 0.8;
+        public static final double kP = 2; // increase this to make the arm more forceful 
         public static final double kI = 0; // leave this at zero for your safety 
         public static final double kD = 0;
         public static final double kMaxVelocityRadPerSecond = 5;
@@ -82,8 +86,9 @@ public final class Constants {
         public static final int kElevatorMotorId = 12; 
 
         public static final double kErrorTolerance = 0.02; // m
-        public static final double kUpper = 0.73; // m
-        public static final double kMidCubePos = 0.6; 
+        public static final double kUpper = 0.75; // m
+        public static final double kMidConePos = 0.56;
+        public static final double kMidCubePos = 0.4; 
         public static final double kLower = 0.10; // m
 
         public static final double kP = 5;
@@ -94,7 +99,7 @@ public final class Constants {
 
         public static double kElevatorFeedforward = 0.075; // initial power offset 
         public static double kMaxVelocityMetersPerSecond = 4;
-        public static double kMaxAccelerationMetersPerSecondSquared = 3; 
+        public static double kMaxAccelerationMetersPerSecondSquared = 8; 
     }
 
     public static final class ShuffleboardConstants {
@@ -107,6 +112,8 @@ public final class Constants {
 
     public static final class IntakeConstants {
         public static final double kDefaultOutakeSpeed = 1; 
-        public static final double kDefaultIntakeSpeed = -0.2; 
+        public static final double kDefaultIntakeSpeed = -0.5;
+        public static final double kDefaultHoldSpeed = -0.2;
+        public static final double kDefaultSlowOutSpeed = 0.45; 
     }
 }

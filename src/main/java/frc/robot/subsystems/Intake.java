@@ -72,4 +72,12 @@ public class Intake extends SubsystemBase {
 
   }
 
+public Command holdInCommand() {
+    return runOnce(() -> intake(IntakeConstants.kDefaultHoldSpeed));
+}
+
+public Command slowOutCommand() {
+  return runOnce(() -> intake(IntakeConstants.kDefaultSlowOutSpeed)); 
+}
+
 }
